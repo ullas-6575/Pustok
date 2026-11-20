@@ -11,6 +11,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
+@org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
+@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 public class SecurityConfig {
     @Bean
     UserDetailsService userDetailsService(UserRepository users) {
@@ -26,18 +28,20 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http, JwtService tokens, UserDetailsService users) throws Exception {
         return http.sessionManagement(session -> session.sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.STATELESS))
                 .csrf(csrf -> csrf.csrfTokenRepository(new org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository())
-                    .ignoringRequestMatchers(request -> request.getServletPath().startsWith("/api/") && request.getHeader("Authorization") != null && request.getHeader("Authorization").startsWith("Bearer ")))
+                    .ignoringRequestMatchers(request -> request.getRequestURI().substring(request.getContextPath().length()).startsWith("/api/") && request.getHeader("Authorization") != null && request.getHeader("Authorization").startsWith("Bearer ")))
                 .addFilterBefore(new JwtFilter(tokens, users), org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, error) -> {
-                    if (request.getServletPath().startsWith("/api/")) response.sendError(401); else response.sendRedirect("/signin");
+                    if (request.getRequestURI().substring(request.getContextPath().length()).startsWith("/api/")) response.sendError(401); else response.sendRedirect("/signin");
                 }))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/signup", "/signin", "/error", "/css/**", "/js/**", "/images/**").permitAll()
                         .requestMatchers("/api/auth/signup", "/api/auth/signin", "/api/auth/register", "/api/auth/login", "/api/auth/csrf").permitAll()
+                        .requestMatchers("/admin", "/admin/**", "/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/seller", "/seller/**", "/api/seller/**").hasRole("SELLER")
+                        .requestMatchers("/buyer", "/buyer/**", "/api/buyer/**").hasRole("BUYER")
                         .anyRequest().authenticated())
                 .formLogin(form -> form.disable())
                 .logout(logout -> logout.disable())
                 .build();
     }
 }
-

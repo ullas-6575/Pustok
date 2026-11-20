@@ -1,4 +1,4 @@
-﻿# Project context
+# Project context
 
 Snapshot: 2026-11-20. Update after each milestone and inspect code before relying on this snapshot.
 
@@ -23,9 +23,11 @@ Historical session evidence: successful startup on 8081, signup HTTP 200 and two
 - Logout ownership is duplicated between controller and security filter.
 - SecurityConfig permits obsolete /api/auth routes with no handlers.
 - Automatic Flyway baselining should become an explicit bootstrap decision.
-- No service layer, role administration, shopping functionality or comprehensive test suite yet.
+- AdminService and role administration now exist; shopping functionality is still pending.
 
 Start with authentication hardening, then seller/catalog, then checkout. Update roadmap and architecture as implementation changes. Do not describe planned features as completed.
 
 
 JWT update: JwtService, JwtFilter, AuthApiController and V2 revocation migration implement cookie/Bearer login. The manual session-login, anonymous redirect, duplicate logout and obsolete API gaps above are superseded. Other registration hardening items remain.
+
+Roles and controlled admin bootstrap are implemented. See [Admin access guide](docs/admin-access.md). Seller applications/approval remain planned.

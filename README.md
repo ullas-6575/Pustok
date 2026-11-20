@@ -1,4 +1,4 @@
-﻿# Pustok
+# Pustok
 
 Book marketplace built with Spring Boot, Thymeleaf and Supabase PostgreSQL.
 
@@ -42,3 +42,5 @@ Never commit `.env` or real credentials. Commit and push manually using the agre
 
 
 JWT implementation and API usage: [Authentication guide](docs/authentication.md).
+
+Roles and controlled admin bootstrap are implemented. See [Admin access guide](docs/admin-access.md). Seller applications/approval remain planned.
