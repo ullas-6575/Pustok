@@ -28,4 +28,5 @@ public class User {
     public String getEmail() { return email; }
     public String getPasswordHash() { return passwordHash; }
     public String getRole() { return role; }
+    public void assignRole(Role role) { this.role = role.name(); }
 }

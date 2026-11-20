@@ -1,4 +1,4 @@
-﻿# Architecture
+# Architecture
 
 ## Current system
 
@@ -37,3 +37,5 @@ The website uses JWT cookies; JSON APIs issue Bearer tokens. See docs/authentica
 
 
 JWT details: [Authentication guide](docs/authentication.md). Authentication is stateless; CSRF/flash state may still use an HTTP session.
+
+Roles and controlled admin bootstrap are implemented. See [Admin access guide](docs/admin-access.md). Seller applications/approval remain planned.

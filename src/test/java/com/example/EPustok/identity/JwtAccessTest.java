@@ -1,0 +1,98 @@
+package com.example.EPustok.identity;
+
+import java.util.*;
+import org.junit.jupiter.api.*;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import org.springframework.context.annotation.*;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.*;
+import org.springframework.security.core.userdetails.*;
+import org.springframework.security.crypto.password.*;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+import org.springframework.test.context.web.WebAppConfiguration;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.web.servlet.*;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.Cookie;
+
+@SpringJUnitConfig(JwtAccessTest.Config.class)
+@WebAppConfiguration
+class JwtAccessTest {
+    @Configuration @EnableWebMvc @Import(SecurityConfig.class)
+    static class Config {
+        @Bean UserRepository users() { return mock(UserRepository.class); }
+        @Bean JdbcTemplate jdbc() { return mock(JdbcTemplate.class); }
+        @Bean JwtService tokens(JdbcTemplate jdbc) { return new JwtService(Base64.getEncoder().encodeToString(new byte[32]),false,jdbc); }
+        @Bean AuthApiController auth(AuthenticationManager manager,JwtService jwt,UserRepository users,PasswordEncoder encoder) { return new AuthApiController(manager,jwt,users,encoder); }
+        @Bean AdminService adminService(UserRepository users) { return new AdminService(users); }
+        @Bean AdminApiController adminApi(AdminService admin) { return new AdminApiController(admin); }
+        @Bean Probe probe() { return new Probe(); }
+    }
+    @RestController static class Probe {
+        @GetMapping("/seller/probe") String seller() { return "seller"; }
+        @GetMapping("/buyer/probe") String buyer() { return "buyer"; }
+    }
+    @Autowired WebApplicationContext context;
+    @Autowired UserRepository users;
+    @Autowired JdbcTemplate jdbc;
+    @Autowired JwtService tokens;
+    @Autowired PasswordEncoder passwords;
+    MockMvc mvc;
+    @BeforeEach void setup() {
+        reset(users,jdbc);
+        for(Role role:Role.values()) {
+            User user=new User(role.name(),role.name().toLowerCase()+"@example.com",passwords.encode("correct-password"));
+            user.assignRole(role);
+            when(users.findByEmailIgnoreCase(user.getEmail())).thenReturn(Optional.of(user));
+        }
+        when(users.findAll(any(org.springframework.data.domain.Pageable.class))).thenReturn(org.springframework.data.domain.Page.empty());
+        mvc=MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+    }
+    @Test void bearerRoleBoundariesAndAnonymousRejection() throws Exception {
+        mvc.perform(get("/api/admin/users")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/admin/users").header("Authorization","Bearer "+tokens.issue("buyer@example.com"))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/admin/users").header("Authorization","Bearer "+tokens.issue("admin@example.com"))).andExpect(status().isOk());
+        mvc.perform(get("/seller/probe").header("Authorization","Bearer "+tokens.issue("seller@example.com"))).andExpect(status().isOk());
+        mvc.perform(get("/seller/probe").header("Authorization","Bearer "+tokens.issue("buyer@example.com"))).andExpect(status().isForbidden());
+        mvc.perform(get("/buyer/probe").header("Authorization","Bearer "+tokens.issue("buyer@example.com"))).andExpect(status().isOk());
+    }
+    @Test void cookieAuthRequiresCsrfAndLogoutRevokesToken() throws Exception {
+        String token=tokens.issue("buyer@example.com");
+        String id=tokens.validate(token).getId();
+        mvc.perform(get("/api/auth/me").cookie(new Cookie(JwtService.COOKIE,token))).andExpect(status().isOk());
+        mvc.perform(post("/api/auth/logout").cookie(new Cookie(JwtService.COOKIE,token))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/auth/logout").cookie(new Cookie(JwtService.COOKIE,token)).with(csrf())).andExpect(status().isOk());
+        verify(jdbc).update(anyString(),eq(id),any(java.sql.Timestamp.class));
+        when(jdbc.queryForObject(anyString(),eq(Boolean.class),eq(id))).thenReturn(true);
+        mvc.perform(get("/api/auth/me").header("Authorization","Bearer "+token)).andExpect(status().isUnauthorized());
+    }
+    @Test void loginChecksPasswordAndTokenWorks() throws Exception {
+        mvc.perform(post("/api/auth/login").with(csrf()).contentType("application/json").content("{\"email\":\"buyer@example.com\",\"password\":\"wrong\"}")).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/auth/login").with(csrf()).contentType("application/json").content("{\"email\":\"buyer@example.com\",\"password\":\"correct-password\"}")).andExpect(status().isOk()).andExpect(jsonPath("$.tokenType").value("Bearer"));
+        mvc.perform(get("/api/auth/me").header("Authorization","Bearer invalid")).andExpect(status().isUnauthorized());
+    }
+    @Test void signupCannotRequestAdminRole() throws Exception {
+        when(users.saveAndFlush(any(User.class))).thenAnswer(invocation->{
+            User user=invocation.getArgument(0);
+            assertEquals("BUYER",user.getRole());
+            var field=User.class.getDeclaredField("id"); field.setAccessible(true);field.set(user,99L);return user;
+        });
+        mvc.perform(post("/api/auth/register").with(csrf()).contentType("application/json").content("{\"name\":\"Reader\",\"email\":\"new@example.com\",\"password\":\"password123\",\"role\":\"ADMIN\"}")).andExpect(status().isCreated()).andExpect(jsonPath("$.role").value("BUYER"));
+    }
+    @Test void roleChangeTakesEffectForExistingJwt() throws Exception {
+        String token=tokens.issue("buyer@example.com");
+        User user=users.findByEmailIgnoreCase("buyer@example.com").orElseThrow();
+        user.assignRole(Role.SELLER);
+        mvc.perform(get("/seller/probe").header("Authorization","Bearer "+token)).andExpect(status().isOk());
+        mvc.perform(get("/buyer/probe").header("Authorization","Bearer "+token)).andExpect(status().isForbidden());
+    }
+}

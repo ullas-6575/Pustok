@@ -1,4 +1,4 @@
-﻿# Roadmap to completion
+# Roadmap to completion
 
 ## Milestone 1: Authentication foundation
 
@@ -8,7 +8,7 @@
 - [ ] Consolidate logout handling; remove obsolete API allowlist entries.
 - [ ] Move registration business rules into a service.
 - [ ] Decide session/JWT and single-role/multi-role requirements.
-- [ ] Add controlled admin provisioning and authorization tests.
+- [x] Add controlled admin provisioning and authorization tests.
 
 Exit: registration, failed login, session renewal, CSRF rejection and logout work reliably.
 

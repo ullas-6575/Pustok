@@ -7,6 +7,16 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class JwtServiceTest {
+    @Test void expiredTokenIsRejected() {
+        var key = new javax.crypto.spec.SecretKeySpec(new byte[32], "HmacSHA256");
+        var encoder = new org.springframework.security.oauth2.jwt.NimbusJwtEncoder(new com.nimbusds.jose.jwk.source.ImmutableSecret<>(key));
+        var now = java.time.Instant.now();
+        var claims = org.springframework.security.oauth2.jwt.JwtClaimsSet.builder().issuer("pustok").subject("reader@example.com").id("expired")
+                .issuedAt(now.minusSeconds(7200)).expiresAt(now.minusSeconds(3600)).build();
+        String expired = encoder.encode(org.springframework.security.oauth2.jwt.JwtEncoderParameters.from(
+                org.springframework.security.oauth2.jwt.JwsHeader.with(org.springframework.security.oauth2.jose.jws.MacAlgorithm.HS256).build(), claims)).getTokenValue();
+        assertThrows(JwtException.class, () -> tokens.validate(expired));
+    }
     private final JdbcTemplate jdbc = mock(JdbcTemplate.class);
     private final JwtService tokens = new JwtService(java.util.Base64.getEncoder().encodeToString(new byte[32]),false,jdbc);
     @Test void signedTokenContainsSubjectAndExpiry() {
