@@ -65,6 +65,18 @@ class JwtAccessTest {
         mvc.perform(get("/seller/probe").header("Authorization","Bearer "+tokens.issue("buyer@example.com"))).andExpect(status().isForbidden());
         mvc.perform(get("/buyer/probe").header("Authorization","Bearer "+tokens.issue("buyer@example.com"))).andExpect(status().isOk());
     }
+    @org.springframework.test.annotation.DirtiesContext(methodMode=org.springframework.test.annotation.DirtiesContext.MethodMode.BEFORE_METHOD)
+    @Test void browserCsrfCookieSurvivesWithoutHttpSession() throws Exception {
+        var page=mvc.perform(get("/api/auth/csrf")).andExpect(status().isOk()).andReturn();
+        var cookie=page.getResponse().getCookie("PUSTOK_CSRF");
+        assertNotNull(cookie);
+        var authCookie = new Cookie(JwtService.COOKIE,tokens.issue("buyer@example.com"));
+        var authenticated = mvc.perform(get("/api/auth/csrf").cookie(authCookie)).andExpect(status().isOk()).andReturn();
+        String token = ((org.springframework.security.web.csrf.CsrfToken)authenticated.getRequest().getAttribute("_csrf")).getToken();
+        mvc.perform(post("/api/auth/logout").cookie(authCookie).param("_csrf",token)).andExpect(status().isOk());
+        mvc.perform(post("/api/auth/logout").cookie(authCookie).param("_csrf","wrong-token")).andExpect(status().isForbidden());
+
+    }
     @Test void sellerCannotReapplyForSellerAccess() throws Exception {
         mvc.perform(get("/buyer/seller-application").header("Authorization","Bearer "+tokens.issue("seller@example.com"))).andExpect(status().isForbidden());
     }
