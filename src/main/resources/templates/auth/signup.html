@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Create account | Pustok</title><link rel="stylesheet" th:href="@{/css/auth.css}"></head>
+<body><main class="card"><a class="brand" th:href="@{/}">Pustok</a><h1>Create your account</h1><p class="muted">Join the community of book lovers.</p>
+<form th:action="@{/signup}" th:object="${form}" method="post">
+<label for="name">Full name</label><input id="name" th:field="*{name}" autocomplete="name" required maxlength="120"><small class="error" th:errors="*{name}"></small>
+<label for="email">Email</label><input id="email" type="email" th:field="*{email}" autocomplete="email" required maxlength="254"><small class="error" th:errors="*{email}"></small>
+<label for="password">Password</label><input id="password" type="password" th:field="*{password}" autocomplete="new-password" minlength="8" maxlength="72" required><small class="hint">At least 8 characters.</small><small class="error" th:errors="*{password}"></small>
+<button type="submit">Create account</button></form><p class="foot">Already have an account? <a th:href="@{/signin}">Sign in</a></p></main></body></html>
