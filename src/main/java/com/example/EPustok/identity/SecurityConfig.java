@@ -23,13 +23,21 @@ public class SecurityConfig {
     @Bean AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception { return config.getAuthenticationManager(); }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http.authorizeHttpRequests(auth -> auth
+    SecurityFilterChain securityFilterChain(HttpSecurity http, JwtService tokens, UserDetailsService users) throws Exception {
+        return http.sessionManagement(session -> session.sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.STATELESS))
+                .csrf(csrf -> csrf.csrfTokenRepository(new org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository())
+                    .ignoringRequestMatchers(request -> request.getServletPath().startsWith("/api/") && request.getHeader("Authorization") != null && request.getHeader("Authorization").startsWith("Bearer ")))
+                .addFilterBefore(new JwtFilter(tokens, users), org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, error) -> {
+                    if (request.getServletPath().startsWith("/api/")) response.sendError(401); else response.sendRedirect("/signin");
+                }))
+                .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/signup", "/signin", "/error", "/css/**", "/js/**", "/images/**").permitAll()
-                        .requestMatchers("/api/auth/signup", "/api/auth/signin").permitAll()
+                        .requestMatchers("/api/auth/signup", "/api/auth/signin", "/api/auth/register", "/api/auth/login", "/api/auth/csrf").permitAll()
                         .anyRequest().authenticated())
                 .formLogin(form -> form.disable())
-                .logout(logout -> logout.logoutUrl("/signout").logoutSuccessUrl("/signin?logout"))
+                .logout(logout -> logout.disable())
                 .build();
     }
 }
+
