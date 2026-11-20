@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pustok — Find your next favorite</title><link rel="stylesheet" th:href="@{/css/home.css}">
+</head>
+<body>
+<header class="topbar"><a class="logo" th:href="@{/}"><span class="logo-mark">p</span> pustok</a>
+  <nav><a class="active" href="#discover">Discover</a><a href="#categories">Categories</a><a href="#featured">Bestsellers</a></nav>
+  <div class="account"><span class="hello">Hi, <b th:text="${displayName}">reader</b></span><form th:action="@{/signout}" method="post"><button class="signout" type="submit">Sign out</button></form><span class="avatar" th:text="${#strings.substring(displayName,0,1).toUpperCase()}">R</span></div>
+</header>
+<main>
+  <section class="hero" id="discover"><div class="hero-copy"><span class="eyebrow"><i></i> YOUR NEXT CHAPTER STARTS HERE</span><h1>Stories worth<br><em>getting lost in.</em></h1><p>Find your next favorite from thousands of stories, ideas, and adventures picked for curious minds.</p><a class="primary" href="#featured">Explore the collection <span>↗</span></a><div class="social-proof"><div class="faces"><span>J</span><span>M</span><span>A</span><span>+</span></div><div><strong>12,000+</strong><small>readers found their next book</small></div></div></div>
+    <div class="hero-art"><div class="sun"></div><div class="book book-back"><div class="cover-label">THE<br>QUIET<br>ATLAS</div><div class="cover-line"></div><small>FIELD NOTES FOR THE SOUL</small></div><div class="book book-front"><div class="cover-flower">✳</div><div class="front-title">A softer<br>kind of<br><i>brave</i></div><small>ELLA MORROW</small></div><div class="floating-note">✦ &nbsp; A little wonder, every day</div><div class="art-caption">EDITOR'S PICK <b>№ 014</b></div></div>
+  </section>
+  <section class="category-section" id="categories"><div class="section-head"><div><span class="eyebrow">A WORLD OF IDEAS</span><h2>Browse by mood</h2></div><a href="#featured" class="text-link">All categories <span>→</span></a></div><div class="categories"><a class="category cat-1" href="#featured"><span class="cat-icon">✧</span><b>Fiction</b><small>Stories to get lost in</small><span class="arrow">↗</span></a><a class="category cat-2" href="#featured"><span class="cat-icon">◌</span><b>Personal growth</b><small>Become a little more you</small><span class="arrow">↗</span></a><a class="category cat-3" href="#featured"><span class="cat-icon">⌘</span><b>Business</b><small>Ideas that move you forward</small><span class="arrow">↗</span></a><a class="category cat-4" href="#featured"><span class="cat-icon">☼</span><b>Young readers</b><small>Big imaginations start here</small><span class="arrow">↗</span></a></div></section>
+  <section class="featured" id="featured"><div class="section-head"><div><span class="eyebrow">LOVED BY READERS</span><h2>This week's favorites</h2></div><a href="#featured" class="text-link">View all books <span>→</span></a></div><div class="book-grid">
+    <article class="book-card"><div class="book-cover cover-one"><span class="tag">NEW</span><div class="cover-art">☼</div><div class="book-name">THE<br>GARDEN<br><i>WITHIN</i></div><small>OLIVIA HART</small></div><div class="book-info"><div><b>The Garden Within</b><span>Olivia Hart · Fiction</span></div><strong>$18.50</strong></div><div class="rating">★★★★★ <span>(128)</span></div></article>
+    <article class="book-card"><div class="book-cover cover-two"><div class="book-name">SMALL<br>THINGS<br><i>MATTER</i></div><div class="cover-shape">◒</div><small>JAMES WILLOW</small></div><div class="book-info"><div><b>Small Things Matter</b><span>James Willow · Lifestyle</span></div><strong>$16.00</strong></div><div class="rating">★★★★★ <span>(96)</span></div></article>
+    <article class="book-card"><div class="book-cover cover-three"><span class="tag">TRENDING</span><div class="cover-art">☾</div><div class="book-name">AFTER<br>THE<br><i>BLUE</i></div><small>MIRA SOL</small></div><div class="book-info"><div><b>After the Blue</b><span>Mira Sol · Fiction</span></div><strong>$21.00</strong></div><div class="rating">★★★★★ <span>(204)</span></div></article>
+    <article class="book-card"><div class="book-cover cover-four"><div class="book-name">MAKE<br>ROOM<br><i>TO GROW</i></div><div class="cover-shape">✳</div><small>NOAH REED</small></div><div class="book-info"><div><b>Make Room to Grow</b><span>Noah Reed · Personal growth</span></div><strong>$19.25</strong></div><div class="rating">★★★★★ <span>(73)</span></div></article>
+  </div></section>
+  <section class="quote"><span>“</span><blockquote>A book is a little door.<br>Go on, open one.</blockquote><small>YOUR PUSTOK READING JOURNEY</small></section>
+</main><footer><a class="logo" th:href="@{/}"><span class="logo-mark">p</span> pustok</a><small>Made for the love of a good story.</small><small>© 2026 Pustok Books</small></footer>
+</body></html>
