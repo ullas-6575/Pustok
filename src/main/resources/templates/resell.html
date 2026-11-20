@@ -13,6 +13,7 @@
   <nav aria-label="Account navigation">
     <a th:href="@{/catalog}">Catalog</a>
     <a class="active" th:href="@{/resell}">Resell &amp; Exchange</a>
+    <a th:href="@{/chat}">Messages</a>
     <a th:href="@{/}">Discover</a>
     <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer/cart}">Cart</a>
     <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer/orders}">My orders</a>

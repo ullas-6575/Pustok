@@ -13,6 +13,7 @@
   <nav aria-label="Catalog navigation">
     <a class="active" th:href="@{/catalog}">Catalog</a>
     <a th:href="@{/resell}">Resell &amp; Exchange</a>
+    <a th:href="@{/chat}">Messages</a>
     <a th:href="@{/}">Discover</a>
     <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer/cart}"
        th:text="${cartCount > 0 ? 'Cart (' + cartCount + ')' : 'Cart'}">Cart</a>
@@ -164,11 +165,14 @@
              th:if="${r.listingType == 'RESELL' and currentUserId != null and currentUserId.equals(r.userId)}">
           <button class="chat-placeholder-btn" type="button" disabled>Your resell listing</button>
         </div>
-        <div class="cart-add-form" th:if="${r.listingType == 'EXCHANGE'}">
-          <button class="chat-placeholder-btn" type="button" disabled
-                  title="WebSocket chat negotiation coming soon">
-            Negotiate via Chat (Coming soon)
-          </button>
+        <form class="cart-add-form"
+              th:if="${r.listingType == 'EXCHANGE' and (currentUserId == null or !currentUserId.equals(r.userId))}"
+              th:action="@{/chat/exchange/{id}(id=${r.id})}" method="post">
+          <button class="add-cart-btn" type="submit">Negotiate via Chat</button>
+        </form>
+        <div class="cart-add-form"
+             th:if="${r.listingType == 'EXCHANGE' and currentUserId != null and currentUserId.equals(r.userId)}">
+          <a class="add-cart-btn" th:href="@{/chat}" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;">View chat offers</a>
         </div>
       </article>
     </div>
