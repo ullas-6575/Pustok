@@ -25,7 +25,7 @@ public class SecurityConfig {
     @Bean AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception { return config.getAuthenticationManager(); }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, JwtService tokens, UserDetailsService users) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http,  JwtService tokens, UserDetailsService users) throws Exception {
         return http.sessionManagement(session -> session.sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.STATELESS))
                 .csrf(csrf -> csrf.csrfTokenRepository(new org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository())
                     .ignoringRequestMatchers(request -> request.getRequestURI().substring(request.getContextPath().length()).startsWith("/api/") && request.getHeader("Authorization") != null && request.getHeader("Authorization").startsWith("Bearer ")))
@@ -38,7 +38,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/signup", "/api/auth/signin", "/api/auth/register", "/api/auth/login", "/api/auth/csrf").permitAll()
                         .requestMatchers("/admin", "/admin/**", "/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/seller", "/seller/**", "/api/seller/**").hasRole("SELLER")
-                        .requestMatchers("/buyer", "/buyer/**", "/api/buyer/**").hasRole("BUYER")
+                        .requestMatchers("/buyer/seller-application", "/buyer/seller-application/**").hasRole("BUYER")
+                        .requestMatchers("/buyer", "/buyer/**", "/api/buyer/**").hasAnyRole("BUYER", "SELLER")
                         .anyRequest().authenticated())
                 .formLogin(form -> form.disable())
                 .logout(logout -> logout.disable())

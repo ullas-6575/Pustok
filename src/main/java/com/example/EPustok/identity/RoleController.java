@@ -15,7 +15,7 @@ public class RoleController {
     @PostMapping("/admin/users/{id}/role")
     public String role(@PathVariable long id,@RequestParam Role role) { admin.changeRole(id,role); return "redirect:/admin"; }
     @GetMapping("/seller")
-    public String seller(Model model) { model.addAttribute("role","SELLER"); return "workspace"; }
+    public String seller(Model model) { return "redirect:/seller/books"; }
     @GetMapping("/buyer")
     public String buyer(Model model) { model.addAttribute("role","BUYER"); return "workspace"; }
 }
