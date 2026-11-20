@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Exchange Chat | Pustok</title>
+  <link rel="stylesheet" th:href="@{/css/home.css}">
+  <link rel="stylesheet" th:href="@{/css/chat.css}">
+</head>
+<body class="chat-page">
+<header class="topbar">
+  <a class="logo" th:href="@{/}"><span class="logo-mark">p</span> pustok</a>
+  <nav aria-label="Chat navigation">
+    <a th:href="@{/catalog}">Catalog</a>
+    <a th:href="@{/resell}">Resell &amp; Exchange</a>
+    <a class="active" th:href="@{/chat}">Messages</a>
+    <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer/cart}">Cart</a>
+    <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer/orders}">My Orders</a>
+    <a sec:authorize="hasRole('SELLER')" th:href="@{/seller/books}">My Books</a>
+    <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin}">Admin</a>
+  </nav>
+  <div class="account">
+    <span class="hello">Hi, <b th:text="${displayName}">reader</b></span>
+    <form th:action="@{/signout}" method="post">
+      <button class="signout" type="submit">Sign out</button>
+    </form>
+    <span class="avatar" th:text="${#strings.substring(displayName,0,1).toUpperCase()}">R</span>
+  </div>
+</header>
+
+<main class="chat-shell">
+  <aside class="chat-sidebar" aria-label="Exchange conversations">
+    <div class="sidebar-head">
+      <span class="eyebrow">EXCHANGE NEGOTIATIONS</span>
+      <h2>Your chats</h2>
+    </div>
+    <p class="sidebar-empty" th:if="${#lists.isEmpty(conversations)}">
+      No exchange chats yet. Pick an Exchange book in the <a th:href="@{/catalog(type='exchange')}">Catalog</a> to start negotiating.
+    </p>
+    <ul class="conv-list" th:if="${!#lists.isEmpty(conversations)}">
+      <li th:each="c : ${conversations}">
+        <a class="conv-item"
+           th:classappend="${activeConversation != null and activeConversation.id == c.id ? ' active' : ''}"
+           th:href="@{/chat/{id}(id=${c.id})}">
+          <strong th:text="${c.bookTitle}">Book Title</strong>
+          <span class="conv-peer" th:text="${'With ' + c.peerName}">With Reader</span>
+          <small th:text="${'Wants: ' + c.desiredBook}">Wants: ...</small>
+        </a>
+      </li>
+    </ul>
+  </aside>
+
+  <section class="chat-main" aria-label="Conversation">
+    <div class="chat-empty-state" th:if="${activeConversation == null}">
+      <span class="empty-symbol" aria-hidden="true">&#10042;</span>
+      <h2>Select a conversation</h2>
+      <p>Negotiate book swaps in real time with the other reader.</p>
+      <a class="browse-link" th:href="@{/catalog(type='exchange')}">Browse Exchange Books &rarr;</a>
+    </div>
+
+    <div class="chat-room" th:if="${activeConversation != null}"
+         th:attr="data-conv-id=${activeConversation.id},data-user-id=${currentUserId}">
+      <div class="chat-room-head">
+        <div>
+          <span class="eyebrow" th:text="${'EXCHANGE WITH ' + #strings.toUpperCase(peerName)}">EXCHANGE</span>
+          <h1 th:text="${activeListing != null ? activeListing.title : 'Book Exchange'}">Book Title</h1>
+          <p class="room-meta" th:if="${activeListing != null}">
+            <span th:text="${'by ' + activeListing.author + ' • ' + activeListing.bookCondition.replace('_', ' ')}"></span>
+            <span th:text="${' • Looking for: ' + (activeListing.desiredBook != null ? activeListing.desiredBook : 'Open to offers')}"></span>
+          </p>
+        </div>
+        <div class="room-actions">
+          <span class="ws-status" id="wsStatus">Connecting...</span>
+          <form th:if="${isListingOwner and activeListing != null and activeListing.status == 'AVAILABLE'}"
+                th:action="@{/resell/{id}/close(id=${activeListing.id})}" method="post">
+            <button class="close-deal-btn" type="submit">Mark Exchange Closed</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="chat-messages" id="chatMessages">
+        <div class="msg-row" th:each="m : ${messages}"
+             th:classappend="${m.senderId == currentUserId ? ' mine' : ' theirs'}">
+          <div class="msg-bubble">
+            <div class="msg-meta">
+              <strong th:text="${m.senderId == currentUserId ? 'You' : m.senderName}">Sender</strong>
+              <span th:text="${#temporals.format(m.sentAt, 'HH:mm')}">12:00</span>
+            </div>
+            <p th:text="${m.content}">Message</p>
+          </div>
+        </div>
+      </div>
+
+      <form class="chat-input-form" id="chatForm">
+        <input type="text" id="chatInput" maxlength="1000" autocomplete="off"
+               placeholder="Write an offer or propose a meetup / book swap..." required>
+        <button type="submit" id="sendBtn" disabled>Send</button>
+      </form>
+    </div>
+  </section>
+</main>
+
+<script th:if="${activeConversation != null}">
+  (function () {
+    const room = document.querySelector('.chat-room');
+    const convId = room.getAttribute('data-conv-id');
+    const currentUserId = Number(room.getAttribute('data-user-id'));
+    const messagesEl = document.getElementById('chatMessages');
+    const form = document.getElementById('chatForm');
+    const input = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const statusEl = document.getElementById('wsStatus');
+
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = protocol + '//' + window.location.host + '/ws-chat';
+    let ws;
+    let buffer = '';
+
+    function frame(command, headers, body) {
+      let out = command + '\n';
+      for (const [k, v] of Object.entries(headers || {})) {
+        out += k + ':' + v + '\n';
+      }
+      out += '\n' + (body || '') + '\0';
+      return out;
+    }
+
+    function appendMessage(msg) {
+      const isMine = Number(msg.senderId) === currentUserId;
+      const row = document.createElement('div');
+      row.className = 'msg-row ' + (isMine ? 'mine' : 'theirs');
+
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+
+      const meta = document.createElement('div');
+      meta.className = 'msg-meta';
+      const strong = document.createElement('strong');
+      strong.textContent = isMine ? 'You' : (msg.senderName || 'Reader');
+      const time = document.createElement('span');
+      const d = msg.sentAt ? new Date(msg.sentAt) : new Date();
+      time.textContent = d.toTimeString().slice(0, 5);
+      meta.appendChild(strong);
+      meta.appendChild(time);
+
+      const p = document.createElement('p');
+      p.textContent = msg.content;
+
+      bubble.appendChild(meta);
+      bubble.appendChild(p);
+      row.appendChild(bubble);
+      messagesEl.appendChild(row);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function connect() {
+      ws = new WebSocket(wsUrl);
+      ws.onopen = function () {
+        ws.send(frame('CONNECT', { 'accept-version': '1.2', 'heart-beat': '0,0' }, ''));
+      };
+      ws.onmessage = function (event) {
+        buffer += event.data;
+        let idx;
+        while ((idx = buffer.indexOf('\0')) !== -1) {
+          const raw = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 1);
+          const trimmed = raw.replace(/^\n+/, '');
+          if (!trimmed) continue;
+          const splitIdx = trimmed.indexOf('\n\n');
+          const headerPart = splitIdx >= 0 ? trimmed.slice(0, splitIdx) : trimmed;
+          const bodyPart = splitIdx >= 0 ? trimmed.slice(splitIdx + 2) : '';
+          const command = headerPart.split('\n')[0].trim();
+          if (command === 'CONNECTED') {
+            statusEl.textContent = 'Live';
+            statusEl.classList.add('online');
+            sendBtn.disabled = false;
+            ws.send(frame('SUBSCRIBE', { id: 'sub-0', destination: '/topic/chat/' + convId }, ''));
+          } else if (command === 'MESSAGE' && bodyPart) {
+            try {
+              appendMessage(JSON.parse(bodyPart));
+            } catch (e) {
+              console.error(e);
+            }
+          }
+        }
+      };
+      ws.onclose = function () {
+        statusEl.textContent = 'Reconnecting...';
+        statusEl.classList.remove('online');
+        sendBtn.disabled = true;
+        setTimeout(connect, 2000);
+      };
+    }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(frame(
+        'SEND',
+        { destination: '/app/chat/' + convId, 'content-type': 'application/json' },
+        JSON.stringify({ content: text })
+      ));
+      input.value = '';
+    });
+
+    connect();
+  })();
+</script>
+</body>
+</html>

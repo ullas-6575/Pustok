@@ -2,12 +2,12 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Your cart | Pustok</title><link rel="stylesheet" th:href="@{/css/home.css}"><link rel="stylesheet" th:href="@{/css/cart.css}"></head>
 <body class="cart-page">
-<header class="topbar"><a class="logo" th:href="@{/}"><span class="logo-mark">p</span> pustok</a><nav aria-label="Main navigation"><a th:href="@{/}">Discover books</a><a class="active" th:href="@{/buyer/cart}">Your cart</a></nav><form th:action="@{/signout}" method="post"><button class="signout">Sign out</button></form></header>
+<header class="topbar"><a class="logo" th:href="@{/}"><span class="logo-mark">p</span> pustok</a><nav aria-label="Main navigation"><a th:href="@{/catalog}">Catalog</a><a th:href="@{/}">Discover books</a><a class="active" th:href="@{/buyer/cart}">Your cart</a></nav><form th:action="@{/signout}" method="post"><button class="signout">Sign out</button></form></header>
 <main class="cart-shell">
-<a class="back-link" th:href="@{/}"><span aria-hidden="true">&#8592;</span> Continue browsing</a>
-<div class="cart-heading"><div><span class="eyebrow">YOUR NEXT CHAPTER</span><h1>A few good reads.</h1><p>Your next favorites, all in one place.</p></div><span class="item-count" th:text="${#lists.size(items) + (#lists.size(items) == 1 ? ' book in your cart' : ' books in your cart')}"></span></div>
+<a class="back-link" th:href="@{/catalog}"><span aria-hidden="true">&#8592;</span> Continue browsing</a>
+<div class="cart-heading"><div><span class="eyebrow">YOUR NEXT CHAPTER</span><h1>A few good reads.</h1><p>Your next favorites, all in one place.</p></div><span class="item-count" th:text="${totalCount + (totalCount == 1 ? ' book in your cart' : ' books in your cart')}"></span></div>
 <p class="cart-notice" role="status" th:if="${message}" th:text="${message}"></p>
-<div class="cart-layout" th:if="${!#lists.isEmpty(items)}">
+<div class="cart-layout" th:if="${totalCount > 0}">
 <section class="cart-items" aria-label="Cart books">
 <div class="list-heading"><span>Book details</span><span>Subtotal</span></div>
 <article class="cart-row" th:each="item, state : ${items}">
@@ -16,9 +16,17 @@
 <p class="stock-warning" th:if="${item.quantity > item.stock}" role="alert">Stock changed. Reduce quantity or remove this book.</p>
 <div class="row-actions"><form class="quantity-form" th:action="@{/buyer/cart/{id}/update(id=${item.bookId})}" method="post"><label th:for="${'quantity-' + item.bookId}">Qty</label><input th:id="${'quantity-' + item.bookId}" name="quantity" type="number" min="1" th:max="${item.stock}" th:value="${item.quantity}" required><button class="update-button">Update</button></form><form th:action="@{/buyer/cart/{id}/remove(id=${item.bookId})}" method="post"><button class="remove-button" th:aria-label="${'Remove ' + item.title}">Remove</button></form></div></div>
 <strong class="row-subtotal" th:text="${'BDT ' + #numbers.formatDecimal(item.subtotal,1,'COMMA',2,'POINT')}"></strong>
-</article><p class="list-footnote">A little space on your shelf. A whole new world inside.</p></section>
-<aside class="cart-summary" aria-labelledby="summary-title"><span class="eyebrow">THE GOOD STUFF</span><h2 id="summary-title">Your book bag</h2><div class="summary-line"><span>Books</span><span th:text="${#lists.size(items)}"></span></div><div class="summary-line"><span>Subtotal</span><span th:text="${'BDT ' + #numbers.formatDecimal(total,1,'COMMA',2,'POINT')}"></span></div><div class="summary-total"><span>Total</span><strong th:text="${'BDT ' + #numbers.formatDecimal(total,1,'COMMA',2,'POINT')}"></strong></div><a class="browse-button" th:href="@{/buyer/checkout}">Proceed to checkout <span aria-hidden="true">&#8594;</span></a><p class="availability-note">Prices reflect the current listing. Books in your cart do not reserve stock.</p></aside>
+</article>
+<article class="cart-row" th:each="r, state : ${resellItems}">
+<div class="mini-cover tone-3" aria-hidden="true"><span class="cover-imprint">RESELL BOOK</span><span class="cover-title" th:text="${r.title}"></span><span class="cover-ornament">&#10042;</span><span class="cover-author" th:text="${r.author}"></span></div>
+<div class="row-details"><h2 th:text="${r.title}"></h2><p class="row-author" th:text="${r.author + ' • ' + r.bookCondition.replace('_', ' ')}"></p><p class="unit-price" th:text="${'BDT ' + #numbers.formatDecimal(r.price,1,'COMMA',2,'POINT') + ' (Used)'}"></p>
+<p class="stock-warning" th:if="${r.status != 'AVAILABLE'}" role="alert">This used book is no longer available. Remove it before checkout.</p>
+<div class="row-actions"><form th:action="@{/buyer/cart/resell/{id}/remove(id=${r.listingId})}" method="post"><button class="remove-button" th:aria-label="${'Remove ' + r.title}">Remove</button></form></div></div>
+<strong class="row-subtotal" th:text="${'BDT ' + #numbers.formatDecimal(r.price,1,'COMMA',2,'POINT')}"></strong>
+</article>
+<p class="list-footnote">A little space on your shelf. A whole new world inside.</p></section>
+<aside class="cart-summary" aria-labelledby="summary-title"><span class="eyebrow">THE GOOD STUFF</span><h2 id="summary-title">Your book bag</h2><div class="summary-line"><span>Books</span><span th:text="${totalCount}"></span></div><div class="summary-line"><span>Subtotal</span><span th:text="${'BDT ' + #numbers.formatDecimal(total,1,'COMMA',2,'POINT')}"></span></div><div class="summary-total"><span>Total</span><strong th:text="${'BDT ' + #numbers.formatDecimal(total,1,'COMMA',2,'POINT')}"></strong></div><a class="browse-button" th:href="@{/buyer/checkout}">Proceed to checkout <span aria-hidden="true">&#8594;</span></a><p class="availability-note">Prices reflect the current listing. Books in your cart do not reserve stock.</p></aside>
 </div>
-<section class="empty-cart" th:if="${#lists.isEmpty(items)}"><span class="empty-symbol" aria-hidden="true">&#10042;</span><h2>Your next story is waiting.</h2><p>Your book bag is empty. Find something you can't wait to open.</p><a class="browse-button" th:href="@{/}">Explore the collection <span aria-hidden="true">&#8599;</span></a></section>
+<section class="empty-cart" th:if="${totalCount == 0}"><span class="empty-symbol" aria-hidden="true">&#10042;</span><h2>Your next story is waiting.</h2><p>Your book bag is empty. Find something you can't wait to open.</p><a class="browse-button" th:href="@{/catalog}">Explore the collection <span aria-hidden="true">&#8599;</span></a></section>
 </main><footer><a class="logo" th:href="@{/}"><span class="logo-mark">p</span> pustok</a><small>Made for the love of a good story.</small><small>&#169; 2026 Pustok Books</small></footer>
 </body></html>
