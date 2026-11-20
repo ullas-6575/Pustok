@@ -1,0 +1,247 @@
+.catalog-page {
+  background: #fafbf7;
+  min-height: 100vh;
+}
+
+.catalog-page .topbar {
+  background: #fff;
+  gap: 24px;
+}
+
+.catalog-page .topbar nav {
+  gap: 22px;
+  flex-wrap: wrap;
+}
+
+.catalog-shell {
+  max-width: 1190px;
+  margin: 0 auto;
+  padding: 44px 24px 76px;
+  min-height: calc(100vh - 160px);
+}
+
+.catalog-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.catalog-heading {
+  max-width: 680px;
+}
+
+.catalog-heading h1 {
+  font: 500 44px/1.12 var(--serif);
+  letter-spacing: -1.2px;
+  margin: 14px 0 10px;
+}
+
+.catalog-heading p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--muted);
+}
+
+.count-pill {
+  display: inline-block;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: #eef4e8;
+  border: 1px solid #d6e3ce;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.catalog-controls {
+  margin: 26px 0 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.search-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 560px;
+}
+
+.search-form input[type="search"] {
+  flex: 1;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #dce3d5;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  font: 13px var(--sans);
+}
+
+.search-form button,
+.reset-btn {
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  background: var(--green);
+  color: #fff;
+  font: 600 12px var(--sans);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-form button:hover,
+.reset-btn:hover {
+  background: #254b34;
+}
+
+.clear-link {
+  font-size: 12px;
+  color: var(--green);
+  text-decoration: none;
+  padding: 0 6px;
+}
+
+.category-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill {
+  padding: 8px 15px;
+  border-radius: 999px;
+  border: 1px solid #dce3d5;
+  background: #fff;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.pill:hover {
+  border-color: var(--green);
+}
+
+.pill.active {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+.catalog-card {
+  background: #fff;
+  border: 1px solid #e6ebe0;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.catalog-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 11px;
+}
+
+.seller-badge {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stock-badge {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.stock-badge.in-stock {
+  color: var(--green);
+}
+
+.stock-badge.out-of-stock {
+  color: #9d5546;
+}
+
+.cart-add-form {
+  margin-top: 14px;
+}
+
+.add-cart-btn {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  background: var(--green);
+  color: #fff;
+  font: 600 12px var(--sans);
+  cursor: pointer;
+}
+
+.add-cart-btn:hover:not(:disabled) {
+  background: #254b34;
+}
+
+.add-cart-btn:disabled {
+  background: #e9ede4;
+  border-color: #dce3d5;
+  color: #849084;
+  cursor: not-allowed;
+}
+
+.empty-catalog {
+  background: #f2f5ec;
+  border: 1px solid #e2e8d8;
+  border-radius: 12px;
+  padding: 56px 24px;
+  text-align: center;
+}
+
+.empty-symbol {
+  font-size: 28px;
+  color: var(--green);
+}
+
+.empty-catalog h2 {
+  font: 500 28px var(--serif);
+  margin: 12px 0 8px;
+}
+
+.empty-catalog p {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 20px;
+}
+
+@media (max-width: 760px) {
+  .catalog-shell {
+    padding: 28px 16px 56px;
+  }
+
+  .catalog-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .catalog-heading h1 {
+    font-size: 34px;
+  }
+
+  .search-form {
+    flex-wrap: wrap;
+  }
+}

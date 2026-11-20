@@ -54,7 +54,7 @@ public class AuthController {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(form.getEmail().trim().toLowerCase(), form.getPassword()));
             tokens.cookie(response, tokens.issue(authentication.getName()));
-            return "redirect:/";
+            return "redirect:/catalog";
         } catch (org.springframework.security.core.AuthenticationException ex) {
             errors.reject("invalid", "Email or password is incorrect");
             return "auth/signin";
