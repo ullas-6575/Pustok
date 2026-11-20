@@ -14,7 +14,8 @@
     <a class="active" th:href="@{/catalog}">Catalog</a>
     <a th:href="@{/resell}">Resell &amp; Exchange</a>
     <a th:href="@{/}">Discover</a>
-    <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer/cart}">Cart</a>
+    <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer/cart}"
+       th:text="${cartCount > 0 ? 'Cart (' + cartCount + ')' : 'Cart'}">Cart</a>
     <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer/orders}">My Orders</a>
     <a sec:authorize="hasRole('SELLER')" th:href="@{/seller/books}">My Books</a>
     <a sec:authorize="hasRole('SELLER')" th:href="@{/seller/orders}">Seller Orders</a>
@@ -43,6 +44,11 @@
       <span class="count-pill" th:text="${totalCount + (totalCount == 1 ? ' book available' : ' books available')}">0 books available</span>
     </div>
   </section>
+
+  <div class="cart-notice-bar" th:if="${message}" th:classappend="${cartError != null ? ' error' : ''}" role="status">
+    <span th:text="${message}">Book added to cart.</span>
+    <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:if="${cartError == null}" th:href="@{/buyer/cart}">View cart &rarr;</a>
+  </div>
 
   <section class="catalog-controls" aria-label="Filter catalog">
     <form class="search-form" th:action="@{/catalog}" method="get">
@@ -101,11 +107,23 @@
                 th:text="${b.stock > 0 ? 'In stock (' + b.stock + ')' : 'Out of stock'}">In stock</span>
         </div>
 
-        <form class="cart-add-form" sec:authorize="hasAnyRole('BUYER','SELLER')" th:action="@{/buyer/cart/add}" method="post">
+        <form class="cart-add-form" sec:authorize="hasAnyRole('BUYER','SELLER')"
+              th:if="${currentUserId == null or !currentUserId.equals(b.sellerId)}"
+              th:action="@{/buyer/cart/add}" method="post">
           <input type="hidden" name="bookId" th:value="${b.id}">
-          <button class="add-cart-btn" type="submit" th:disabled="${b.stock < 1}"
-                  th:text="${b.stock > 0 ? 'Add to cart' : 'Unavailable'}">Add to cart</button>
+          <input type="hidden" name="redirectTo" value="/catalog">
+          <div class="cart-add-row">
+            <input class="qty-input" type="number" name="quantity" min="1"
+                   th:max="${b.stock > 0 ? b.stock : 1}" value="1"
+                   th:disabled="${b.stock < 1}" aria-label="Quantity">
+            <button class="add-cart-btn" type="submit" th:disabled="${b.stock < 1}"
+                    th:text="${b.stock > 0 ? 'Add to cart' : 'Unavailable'}">Add to cart</button>
+          </div>
         </form>
+        <div class="cart-add-form" sec:authorize="hasAnyRole('BUYER','SELLER')"
+             th:if="${currentUserId != null and currentUserId.equals(b.sellerId)}">
+          <button class="chat-placeholder-btn" type="button" disabled>Your listing</button>
+        </div>
       </article>
 
       <article class="book-card catalog-card community-card" th:each="r, state : ${resellListings}">
@@ -135,11 +153,21 @@
           <span class="condition-badge" th:text="${r.bookCondition.replace('_', ' ')}">GOOD</span>
         </div>
 
-        <div class="cart-add-form">
+        <form class="cart-add-form" sec:authorize="hasAnyRole('BUYER','SELLER')"
+              th:if="${r.listingType == 'RESELL' and (currentUserId == null or !currentUserId.equals(r.userId))}"
+              th:action="@{/buyer/cart/resell/add}" method="post">
+          <input type="hidden" name="listingId" th:value="${r.id}">
+          <input type="hidden" name="redirectTo" value="/catalog">
+          <button class="add-cart-btn" type="submit">Add to cart</button>
+        </form>
+        <div class="cart-add-form" sec:authorize="hasAnyRole('BUYER','SELLER')"
+             th:if="${r.listingType == 'RESELL' and currentUserId != null and currentUserId.equals(r.userId)}">
+          <button class="chat-placeholder-btn" type="button" disabled>Your resell listing</button>
+        </div>
+        <div class="cart-add-form" th:if="${r.listingType == 'EXCHANGE'}">
           <button class="chat-placeholder-btn" type="button" disabled
-                  th:title="${r.listingType == 'EXCHANGE' ? 'WebSocket chat negotiation coming soon' : 'WebSocket chat with seller coming soon'}"
-                  th:text="${r.listingType == 'EXCHANGE' ? 'Negotiate via Chat (Coming soon)' : 'Message Seller (Chat coming soon)'}">
-            Chat coming soon
+                  title="WebSocket chat negotiation coming soon">
+            Negotiate via Chat (Coming soon)
           </button>
         </div>
       </article>

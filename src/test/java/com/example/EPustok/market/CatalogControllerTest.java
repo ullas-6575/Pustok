@@ -1,11 +1,13 @@
 package com.example.EPustok.market;
 
+import com.example.EPustok.cart.CartService;
 import com.example.EPustok.identity.User;
 import com.example.EPustok.identity.UserRepository;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.ui.ExtendedModelMap;
 import org.springframework.ui.Model;
 
@@ -22,6 +24,7 @@ class CatalogControllerTest {
         SellerProfiles profiles = mock(SellerProfiles.class);
         ResellListings resellListings = mock(ResellListings.class);
         UserRepository users = mock(UserRepository.class);
+        CartService cart = mock(CartService.class);
 
         Category fiction = new Category("Fiction");
         Book book1 = new Book(10L);
@@ -42,20 +45,27 @@ class CatalogControllerTest {
         ));
         when(resellListings.findByStatusOrderByCreatedAtDesc("AVAILABLE")).thenReturn(List.of(resell, exchange));
         when(users.findAll()).thenReturn(List.of(new User("Reader", "reader@example.com", "hash")));
+        when(cart.count("buyer@example.com")).thenReturn(2);
 
-        CatalogController controller = new CatalogController(books, categories, profiles, resellListings, users);
+        CatalogController controller = new CatalogController(books, categories, profiles, resellListings, users, cart);
 
         Model buyerModel = new ExtendedModelMap();
         String buyerView = controller.catalog(null, null, null,
-                new UsernamePasswordAuthenticationToken("buyer@example.com", "pw"), buyerModel);
+                new UsernamePasswordAuthenticationToken("buyer@example.com", "pw",
+                        List.of(new SimpleGrantedAuthority("ROLE_BUYER"))),
+                buyerModel);
 
         Model sellerModel = new ExtendedModelMap();
         String sellerView = controller.catalog(null, null, null,
-                new UsernamePasswordAuthenticationToken("seller@example.com", "pw"), sellerModel);
+                new UsernamePasswordAuthenticationToken("seller@example.com", "pw",
+                        List.of(new SimpleGrantedAuthority("ROLE_SELLER"))),
+                sellerModel);
 
         Model adminModel = new ExtendedModelMap();
         String adminView = controller.catalog(null, null, null,
-                new UsernamePasswordAuthenticationToken("admin@example.com", "pw"), adminModel);
+                new UsernamePasswordAuthenticationToken("admin@example.com", "pw",
+                        List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))),
+                adminModel);
 
         assertEquals("catalog", buyerView);
         assertEquals("catalog", sellerView);
@@ -73,6 +83,7 @@ class CatalogControllerTest {
         SellerProfiles profiles = mock(SellerProfiles.class);
         ResellListings resellListings = mock(ResellListings.class);
         UserRepository users = mock(UserRepository.class);
+        CartService cart = mock(CartService.class);
 
         Category fiction = new Category("Fiction");
         Book book1 = new Book(10L);
@@ -89,7 +100,7 @@ class CatalogControllerTest {
         when(resellListings.findByStatusOrderByCreatedAtDesc("AVAILABLE")).thenReturn(List.of(resell, exchange));
         when(users.findAll()).thenReturn(List.of());
 
-        CatalogController controller = new CatalogController(books, categories, profiles, resellListings, users);
+        CatalogController controller = new CatalogController(books, categories, profiles, resellListings, users, cart);
 
         Model resellModel = new ExtendedModelMap();
         controller.catalog(null, "resell", null,

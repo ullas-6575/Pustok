@@ -1,5 +1,6 @@
 package com.example.EPustok.market;
 
+import com.example.EPustok.cart.CartService;
 import com.example.EPustok.identity.User;
 import com.example.EPustok.identity.UserRepository;
 import java.util.List;
@@ -22,18 +23,21 @@ public class CatalogController {
     private final SellerProfiles profiles;
     private final ResellListings resellListings;
     private final UserRepository users;
+    private final CartService cart;
 
     public CatalogController(
             Books books,
             Categories categories,
             SellerProfiles profiles,
             ResellListings resellListings,
-            UserRepository users) {
+            UserRepository users,
+            CartService cart) {
         this.books = books;
         this.categories = categories;
         this.profiles = profiles;
         this.resellListings = resellListings;
         this.users = users;
+        this.cart = cart;
     }
 
     @GetMapping("/catalog")
@@ -73,11 +77,16 @@ public class CatalogController {
         Map<Long, String> sellerNames = profiles.findAll().stream()
                 .collect(Collectors.toMap(SellerProfile::getId, SellerProfile::getShopName, (first, second) -> first));
 
-        Map<Long, String> listerNames = users.findAll().stream()
+        List<User> allUsers = users.findAll();
+        Map<Long, String> listerNames = allUsers.stream()
                 .collect(Collectors.toMap(User::getId, User::getName, (first, second) -> first));
 
         String email = authentication.getName();
         String displayName = email.contains("@") ? email.substring(0, email.indexOf('@')) : email;
+        User currentUser = users.findByEmailIgnoreCase(email).orElse(null);
+        boolean canUseCart = authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_BUYER".equals(a.getAuthority()) || "ROLE_SELLER".equals(a.getAuthority()));
+        int cartCount = canUseCart && currentUser != null ? cart.count(email) : 0;
 
         model.addAttribute("books", filteredBooks);
         model.addAttribute("resellListings", filteredCommunity);
@@ -88,6 +97,8 @@ public class CatalogController {
         model.addAttribute("selectedType", normalizedType);
         model.addAttribute("query", q == null ? "" : q.trim());
         model.addAttribute("totalCount", filteredBooks.size() + filteredCommunity.size());
+        model.addAttribute("currentUserId", currentUser != null ? currentUser.getId() : null);
+        model.addAttribute("cartCount", cartCount);
         model.addAttribute("email", email);
         model.addAttribute("displayName", displayName);
         return "catalog";
