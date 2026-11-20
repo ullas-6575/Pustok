@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Resell &amp; Exchange | Pustok</title>
+  <link rel="stylesheet" th:href="@{/css/home.css}">
+  <link rel="stylesheet" th:href="@{/css/workspace.css}">
+</head>
+<body class="workspace-page">
+<header class="topbar">
+  <a class="logo" th:href="@{/}"><span class="logo-mark">p</span> pustok</a>
+  <nav aria-label="Account navigation">
+    <a th:href="@{/catalog}">Catalog</a>
+    <a class="active" th:href="@{/resell}">Resell &amp; Exchange</a>
+    <a th:href="@{/}">Discover</a>
+    <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer/cart}">Cart</a>
+    <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer/orders}">My orders</a>
+    <a sec:authorize="hasRole('SELLER')" th:href="@{/seller/books}">My books</a>
+    <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin}">Accounts</a>
+  </nav>
+  <form th:action="@{/signout}" method="post"><button class="signout">Sign out</button></form>
+</header>
+
+<main class="workspace-shell">
+  <div class="workspace-heading">
+    <span class="eyebrow">COMMUNITY MARKETPLACE</span>
+    <h1>Resell or exchange a book.</h1>
+    <p>Any reader can list a used book to sell, or offer a book to exchange with another reader via chat (chat coming soon).</p>
+  </div>
+
+  <p class="empty-state" th:if="${message}" th:text="${message}"></p>
+  <p class="empty-state" th:if="${error}" th:text="${error}"></p>
+
+  <div class="workspace-content">
+    <section class="panel">
+      <h2>Create a resell or exchange listing</h2>
+      <form th:action="@{/resell}" method="post">
+        <label class="field-label">Listing type
+          <select name="listingType" id="listingType" required onchange="toggleListingFields()">
+            <option value="RESELL">Resell (Sell used book)</option>
+            <option value="EXCHANGE">Exchange (Swap via chat)</option>
+          </select>
+        </label>
+        <label class="field-label">Book title
+          <input name="title" placeholder="Title" required maxlength="255">
+        </label>
+        <label class="field-label">Author
+          <input name="author" placeholder="Author" required maxlength="255">
+        </label>
+        <label class="field-label">Condition
+          <select name="bookCondition" required>
+            <option value="LIKE_NEW">Like New</option>
+            <option value="GOOD">Good</option>
+            <option value="FAIR">Fair</option>
+          </select>
+        </label>
+        <label class="field-label" id="priceField">Price (BDT)
+          <input name="price" id="priceInput" type="number" min="0.01" step="0.01" placeholder="e.g. 250.00" required>
+        </label>
+        <label class="field-label" id="desiredBookField" style="display:none">Desired book for exchange
+          <input name="desiredBook" id="desiredBookInput" placeholder="e.g. Atomic Habits or Fiction" maxlength="255">
+        </label>
+        <label class="field-label" style="flex-basis:100%">Notes (optional)
+          <input name="description" placeholder="Edition, highlights, pickup/shipping notes" maxlength="500">
+        </label>
+        <button type="submit">Publish listing</button>
+      </form>
+    </section>
+
+    <div class="section-heading">
+      <h2>Your resell &amp; exchange listings</h2>
+      <span th:text="${#lists.size(listings) + ' listings'}"></span>
+    </div>
+
+    <p class="empty-state" th:if="${#lists.isEmpty(listings)}">You haven't listed any used books yet.</p>
+
+    <article th:each="item : ${listings}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+        <div>
+          <span class="eyebrow" th:text="${item.listingType + ' • ' + item.bookCondition.replace('_', ' ') + ' • ' + item.status}">RESELL</span>
+          <h2 style="margin:6px 0 4px" th:text="${item.title}">Book Title</h2>
+          <p style="margin:0" th:text="${'by ' + item.author}"></p>
+          <p th:if="${item.listingType == 'RESELL' and item.price != null}" th:text="${'Price: BDT ' + item.price}"></p>
+          <p th:if="${item.listingType == 'EXCHANGE'}" th:text="${'Exchange for: ' + item.desiredBook}"></p>
+          <p th:if="${!#strings.isEmpty(item.description)}" th:text="${item.description}"></p>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <form th:if="${item.status == 'AVAILABLE'}" th:action="@{/resell/{id}/close(id=${item.id})}" method="post">
+            <button type="submit" class="secondary-button">Mark closed</button>
+          </form>
+          <form th:action="@{/resell/{id}/delete(id=${item.id})}" method="post">
+            <button type="submit" class="danger-button" style="margin-top:0">Delete</button>
+          </form>
+        </div>
+      </div>
+    </article>
+  </div>
+</main>
+
+<script>
+  function toggleListingFields() {
+    var type = document.getElementById('listingType').value;
+    var priceField = document.getElementById('priceField');
+    var priceInput = document.getElementById('priceInput');
+    var desiredField = document.getElementById('desiredBookField');
+    if (type === 'EXCHANGE') {
+      priceField.style.display = 'none';
+      priceInput.required = false;
+      priceInput.value = '';
+      desiredField.style.display = 'flex';
+    } else {
+      priceField.style.display = 'flex';
+      priceInput.required = true;
+      desiredField.style.display = 'none';
+    }
+  }
+</script>
+
+<footer>
+  <a class="logo" th:href="@{/}"><span class="logo-mark">p</span> pustok</a>
+  <small>Made for the love of a good story.</small>
+  <small>&#169; 2026 Pustok Books</small>
+</footer>
+</body>
+</html>
