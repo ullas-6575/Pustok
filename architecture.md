@@ -1,0 +1,39 @@
+﻿# Architecture
+
+## Current system
+
+Browser → Spring Security → AuthController/HomeController → Thymeleaf HTML.
+AuthController → UserRepository → Supabase PostgreSQL.
+UserDetailsService → UserRepository authenticates credentials.
+
+The single Spring Boot application renders HTML. Signup validates input, hashes passwords with BCrypt and persists via JPA. Signin issues a signed JWT; subsequent requests verify it and check the database denylist. Flyway changes the schema; Hibernate validates it.
+
+## Target modular monolith
+
+Keep one deployment. Introduce modules under the existing com.example.EPustok base package. Renaming to the original plan's com.pustok requires updating scanning and tests.
+
+| Module | Responsibility |
+| --- | --- |
+| identity | Users, authentication, roles |
+| seller | Seller profiles and approval |
+| catalog | Categories, books, prices, stock |
+| order | Carts, checkout and order lifecycle |
+| payment | Payment gateways and idempotency |
+| marketplace | Resale and exchange offers |
+| notification | Notifications from business events |
+| common | Shared errors and infrastructure primitives |
+
+Modules expose api contracts and keep implementations in internal packages. Controllers handle input; services own business rules and transactions; repositories persist data. Avoid accessing another module's repository directly.
+
+## Boundaries
+
+Keep CSRF for session-authenticated forms. Enforce roles and resource ownership in services. Never trust client-provided totals, seller approval or account roles. Checkout calculates totals and stores immutable order item prices, with concurrency-safe stock reservation. External payments require idempotency and retry rules. Send notifications after transaction commit.
+
+Repository exists through UserRepository. Planned patterns: Strategy/Factory for payments, State for order/exchange transitions, Observer for business events, Template Method for notification senders. Add real source links when implemented.
+
+## Pending decisions
+
+The website uses JWT cookies; JSON APIs issue Bearer tokens. See docs/authentication.md. Keep public signup BUYER-only. Decide single-role versus multi-role before expanding authorization.
+
+
+JWT details: [Authentication guide](docs/authentication.md). Authentication is stateless; CSRF/flash state may still use an HTTP session.

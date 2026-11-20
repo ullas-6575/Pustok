@@ -9,10 +9,7 @@ import jakarta.validation.constraints.Size;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -25,10 +22,10 @@ public class AuthController {
     private final UserRepository users;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
-    private final SecurityContextRepository contextRepository = new HttpSessionSecurityContextRepository();
+    private final JwtService tokens;
 
-    public AuthController(UserRepository users, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager) {
-        this.users = users; this.passwordEncoder = passwordEncoder; this.authenticationManager = authenticationManager;
+    public AuthController(UserRepository users, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, JwtService tokens) {
+        this.users = users; this.passwordEncoder = passwordEncoder; this.authenticationManager = authenticationManager; this.tokens = tokens;
     }
 
     @GetMapping("/signup")
@@ -56,10 +53,7 @@ public class AuthController {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(form.getEmail().trim().toLowerCase(), form.getPassword()));
-            SecurityContext context = SecurityContextHolder.createEmptyContext();
-            context.setAuthentication(authentication);
-            SecurityContextHolder.setContext(context);
-            contextRepository.saveContext(context, request, response);
+            tokens.cookie(response, tokens.issue(authentication.getName()));
             return "redirect:/";
         } catch (org.springframework.security.core.AuthenticationException ex) {
             errors.reject("invalid", "Email or password is incorrect");
@@ -69,8 +63,11 @@ public class AuthController {
 
     @PostMapping("/signout")
     public String signout(HttpServletRequest request, jakarta.servlet.http.HttpServletResponse response) {
-        new org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler().logout(request, response, SecurityContextHolder.getContext().getAuthentication());
-        return "redirect:/signin";
+        String token = tokens.extract(request);
+        if (token != null) tokens.revoke(token);
+        tokens.cookie(response, "");
+        SecurityContextHolder.clearContext();
+        return "redirect:/signin?logout";
     }
 
     public static class SignupForm {
@@ -88,3 +85,5 @@ public class AuthController {
         public String getPassword(){return password;} public void setPassword(String v){password=v;}
     }
 }
+
+
