@@ -33,3 +33,5 @@ JWT update: JwtService, JwtFilter, AuthApiController and V2 revocation migration
 Roles and controlled admin bootstrap are implemented. See [Admin access guide](docs/admin-access.md). Seller applications/approval remain planned.
 
 Seller/catalog milestone: seller applications and admin approval, category CRUD and seller-owned book CRUD implemented. Homepage books now use database records. See docs/seller-catalog.md.
+
+Cart implemented: persistent per-user items, add/update/remove, stock and own-book checks, live prices and totals. Checkout remains pending. See docs/cart.md.
