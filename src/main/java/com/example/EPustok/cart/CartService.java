@@ -27,7 +27,7 @@ public class CartService {
  jdbc.update("INSERT INTO cart_item(user_id,book_id,quantity) VALUES (?,?,?) ON CONFLICT(user_id,book_id) DO UPDATE SET quantity=EXCLUDED.quantity",id,bookId,(int)total);
  }
  public void update(String email,long bookId,int quantity){long id=user(email);lock(id);available(bookId,id,quantity);if(jdbc.update("UPDATE cart_item SET quantity=? WHERE user_id=? AND book_id=?",quantity,id,bookId)==0)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Cart item not found");}
- public void remove(String email,long bookId){jdbc.update("DELETE FROM cart_item WHERE user_id=? AND book_id=?",user(email),bookId);}
+ public void remove(String email,long bookId){long id=user(email);lock(id);jdbc.update("DELETE FROM cart_item WHERE user_id=? AND book_id=?",id,bookId);}
  @Transactional(readOnly=true) public List<Line> items(String email){return jdbc.query("SELECT b.id,b.title,b.author,b.price,b.stock,c.quantity FROM cart_item c JOIN book b ON b.id=c.book_id WHERE c.user_id=? ORDER BY b.id",(rs,row)->new Line(rs.getLong(1),rs.getString(2),rs.getString(3),rs.getBigDecimal(4),rs.getInt(5),rs.getInt(6)),user(email));}
  public record Line(long bookId,String title,String author,BigDecimal price,int stock,int quantity){public BigDecimal getSubtotal(){return price.multiply(BigDecimal.valueOf(quantity));}}
 }

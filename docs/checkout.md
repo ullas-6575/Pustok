@@ -1,0 +1,3 @@
+# Checkout and COD orders
+
+Open /buyer/checkout from the cart. Enter recipient name, phone and delivery address. Place order creates a COD order and redirects to its private confirmation URL. Price and stock are reread from the database. The user row and book rows are locked to serialize cart writes and prevent overselling. Own-book purchases and empty carts are rejected. Order, immutable item snapshots, stock reduction and cart clearing share one transaction. Repeated submissions with the same checkout request UUID return the existing order. Confirmation requires the owning account. No delivery charge is currently applied. My Orders list and seller fulfillment remain future work.
