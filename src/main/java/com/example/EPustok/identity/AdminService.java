@@ -21,6 +21,7 @@ public class AdminService {
     }
     @Transactional
     public AccountView changeRole(long id, Role role) {
+        if(role==Role.SELLER) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Use seller application approval");
         if(role==Role.ADMIN) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Admin accounts require controlled provisioning");
         User user=users.findById(id).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"User not found"));
         if(user.getRole().equals("ADMIN")) throw new ResponseStatusException(HttpStatus.CONFLICT,"Admin accounts cannot be changed here");

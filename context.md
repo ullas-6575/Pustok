@@ -31,3 +31,5 @@ Start with authentication hardening, then seller/catalog, then checkout. Update 
 JWT update: JwtService, JwtFilter, AuthApiController and V2 revocation migration implement cookie/Bearer login. The manual session-login, anonymous redirect, duplicate logout and obsolete API gaps above are superseded. Other registration hardening items remain.
 
 Roles and controlled admin bootstrap are implemented. See [Admin access guide](docs/admin-access.md). Seller applications/approval remain planned.
+
+Seller/catalog milestone: seller applications and admin approval, category CRUD and seller-owned book CRUD implemented. Homepage books now use database records. See docs/seller-catalog.md.

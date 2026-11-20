@@ -4,7 +4,7 @@ Book marketplace built with Spring Boot, Thymeleaf and Supabase PostgreSQL.
 
 ## Current status
 
-Browser signup, signin, JWT logout and a demo home page are implemented. Catalog, shopping, seller management, payments, resale and exchange remain planned. Demo books and prices are static.
+Browser signup, signin, JWT logout and a demo home page are implemented. Seller applications, admin approval, category CRUD and seller-owned book CRUD are implemented. Homepage books load from PostgreSQL. Shopping, payments, resale and exchange remain planned.
 
 ## Run locally
 

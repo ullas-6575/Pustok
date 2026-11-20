@@ -65,6 +65,9 @@ class JwtAccessTest {
         mvc.perform(get("/seller/probe").header("Authorization","Bearer "+tokens.issue("buyer@example.com"))).andExpect(status().isForbidden());
         mvc.perform(get("/buyer/probe").header("Authorization","Bearer "+tokens.issue("buyer@example.com"))).andExpect(status().isOk());
     }
+    @Test void sellerCannotReapplyForSellerAccess() throws Exception {
+        mvc.perform(get("/buyer/seller-application").header("Authorization","Bearer "+tokens.issue("seller@example.com"))).andExpect(status().isForbidden());
+    }
     @Test void cookieAuthRequiresCsrfAndLogoutRevokesToken() throws Exception {
         String token=tokens.issue("buyer@example.com");
         String id=tokens.validate(token).getId();
@@ -93,6 +96,6 @@ class JwtAccessTest {
         User user=users.findByEmailIgnoreCase("buyer@example.com").orElseThrow();
         user.assignRole(Role.SELLER);
         mvc.perform(get("/seller/probe").header("Authorization","Bearer "+token)).andExpect(status().isOk());
-        mvc.perform(get("/buyer/probe").header("Authorization","Bearer "+token)).andExpect(status().isForbidden());
+        mvc.perform(get("/buyer/probe").header("Authorization","Bearer "+token)).andExpect(status().isOk());
     }
 }
