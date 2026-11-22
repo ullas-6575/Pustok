@@ -1,3 +1,45 @@
-.delivery-form{background:white;border:1px solid var(--line);border-radius:10px;padding:30px}.delivery-form h2,.confirmation h2{font:500 25px var(--serif);margin:0 0 24px}.delivery-form label{display:block;font-size:12px;font-weight:600;margin:20px 0 9px}.delivery-form input:not([type=hidden]),.delivery-form textarea{display:block;width:100%;border:1px solid #dce2d8;border-radius:6px;padding:13px;font:13px var(--sans);color:var(--ink);background:#fdfefb}.delivery-form textarea{resize:vertical}.field-error{font-size:11px;color:#a13d2e}.payment-card{border:1px solid #d9e5d4;background:#f1f5ed;padding:18px;border-radius:6px;margin:26px 0}.payment-card strong{font-size:13px}.payment-card p{font-size:12px;color:var(--muted);margin-bottom:0}.place-order{border:0;width:100%;cursor:pointer;font-family:var(--sans)}.checkout-line{display:flex;justify-content:space-between;gap:20px;border-bottom:1px solid var(--line);padding:17px 0;font-size:12px}.checkout-line strong{font-size:12px;line-height:1.5}.checkout-line small{display:block;color:var(--muted);margin-top:6px}.checkout-line>span{white-space:nowrap}.confirmation{max-width:760px;margin:25px auto;background:#f4f6ef;border-radius:12px;padding:40px}.confirmation h1{font:500 38px var(--serif);margin:20px 0}.confirmation>p{font-size:13px;color:#6d7c6a;line-height:1.8}.order-id{overflow-wrap:anywhere}.confirmation-grid{display:grid;grid-template-columns:1fr 1fr;gap:25px;border-top:1px solid var(--line);padding:25px 0;margin-top:25px}.confirmation-grid p,.confirmation-grid strong{font-size:13px;line-height:1.8}.address{white-space:pre-wrap;overflow-wrap:anywhere}.status-badge{display:inline-block;background:#e0ebd9;color:#3d6337;border-radius:20px;padding:7px 13px;font-size:10px;letter-spacing:1px}.confirmation .browse-button{max-width:280px}@media(max-width:700px){.delivery-form{padding:22px}.confirmation{padding:24px}.confirmation h1{font-size:30px}.confirmation-grid{grid-template-columns:1fr}}
-
-.order-list-card{display:flex;justify-content:space-between;gap:25px;padding:25px 28px;background:white;border:1px solid var(--line);border-radius:10px;margin-bottom:16px}.order-list-card h2{font:500 23px var(--serif);margin:12px 0}.order-list-card h2 a{color:var(--ink);text-decoration:none}.order-list-card p,.order-list-card small{font-size:12px;color:var(--muted)}.order-list-card>div:last-child{text-align:right}.order-pagination{display:flex;gap:24px;justify-content:center;margin:30px;font-size:13px}.order-pagination a{color:var(--green)}.confirmation select{padding:8px;border:1px solid var(--line);border-radius:5px;margin:8px;font:12px var(--sans)}@media(max-width:500px){.order-list-card{padding:20px 16px;gap:12px}.order-list-card h2{font-size:19px}.order-list-card .eyebrow{font-size:8px;letter-spacing:0}}
+/* Checkout, order confirmation and order list pages. */
+.delivery-form { background: var(--surface); border: 2px solid var(--edge); box-shadow: var(--shadow); border-radius: var(--radius); padding: 30px; }
+.delivery-form h2, .confirmation h2 { font: 500 25px var(--font-serif); margin: 0 0 24px; }
+.delivery-form label { display: block; font-size: 13px; font-weight: 600; margin: 20px 0 9px; }
+.delivery-form input:not([type=hidden]), .delivery-form textarea { display: block; width: 100%; }
+.delivery-form textarea { resize: vertical; }
+.payment-card { border: 2px dashed var(--line-strong); background: var(--accent-soft); padding: 18px; border-radius: var(--radius); margin: 26px 0; }
+.payment-card strong { font-size: 14px; }
+.payment-card p { font-size: 13px; color: var(--muted); margin-bottom: 0; }
+.place-order { width: 100%; }
+.checkout-line { display: flex; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding: 17px 0; font-size: 13px; }
+.checkout-line strong { font-size: 13px; line-height: 1.5; }
+.checkout-line small { display: block; color: var(--muted); margin-top: 6px; }
+.checkout-line > span { white-space: nowrap; }
+.confirmation { max-width: 760px; margin: 25px auto; background: var(--surface-alt); border: 2px solid var(--edge); box-shadow: var(--shadow); border-radius: var(--radius); padding: 40px; }
+.confirmation h1 { font: 800 40px/1.05 var(--font-serif); margin: 20px 0; }
+.confirmation > p { font-size: 14px; color: var(--muted); line-height: 1.8; }
+.order-id { overflow-wrap: anywhere; }
+.confirmation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; border-top: 1px solid var(--line); padding: 25px 0; margin-top: 25px; }
+.confirmation-grid p, .confirmation-grid strong { font-size: 14px; line-height: 1.8; }
+.address { white-space: pre-wrap; overflow-wrap: anywhere; }
+.confirmation .browse-button, .confirmation .btn-block { max-width: 280px; }
+.confirmation select { padding: 8px; border: 2px solid var(--line-strong); border-radius: var(--radius-control); margin: 8px; font: 13px var(--font-sans); }
+.confirmation form { margin-top: 16px; }
+.confirmation form label { font-size: 12px; color: var(--muted); }
+.confirmation .checkout-line { align-items: start; }
+.confirmation .checkout-line form button { white-space: normal; }
+.confirmation .status-badge { margin-bottom: 8px; }
+.order-list-card { display: flex; justify-content: space-between; gap: 25px; padding: 25px 28px; background: var(--surface); border: 2px solid var(--edge); box-shadow: var(--shadow); border-radius: var(--radius); margin-bottom: 20px; }
+.order-list-card h2 { font: 700 23px var(--font-serif); margin: 12px 0; }
+.order-list-card h2 a { color: var(--ink); text-decoration: none; }
+.order-list-card p, .order-list-card small { font-size: 13px; color: var(--muted); }
+.order-list-card > div:last-child { text-align: right; }
+.order-pagination { display: flex; gap: 24px; justify-content: center; align-items: center; margin: 30px; font-size: 14px; }
+.order-pagination a { color: var(--accent-ink); }
+@media (max-width: 700px) {
+  .delivery-form { padding: 22px; }
+  .confirmation { padding: 24px; }
+  .confirmation h1 { font-size: 30px; }
+  .confirmation-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 500px) {
+  .order-list-card { padding: 20px 16px; gap: 12px; }
+  .order-list-card h2 { font-size: 19px; }
+}

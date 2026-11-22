@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title th:text="${book.title + ' | Pustok'}">Book | Pustok</title>
+  
+  <link rel="stylesheet" th:href="@{/css/base.css}"><link rel="stylesheet" th:href="@{/css/catalog.css}">
+</head>
+<body class="catalog-page">
+<th:block th:replace="~{fragments/nav :: site-header(active='browse')}"></th:block>
+
+<main>
+  <section class="catalog-grid-section" aria-label="Book details">
+    <div class="book-grid">
+      <article class="book-card catalog-card">
+        <div class="book-cover cover-one">
+          <span class="tag" th:text="${book.category != null ? book.category.name : 'Book'}">Category</span>
+          <div class="book-name" th:text="${book.title}">Book Title</div>
+          <small th:text="${book.author}">Author</small>
+        </div>
+
+        <div class="book-info">
+          <div>
+            <b th:text="${book.title}">Book Title</b>
+            <span th:text="${book.author}">Author</span>
+          </div>
+          <strong th:text="${'BDT ' + #numbers.formatDecimal(book.price,1,'COMMA',2,'POINT')}">BDT 0.00</strong>
+        </div>
+
+        <div class="catalog-meta-row">
+          <span class="seller-badge" th:text="${'Seller: ' + sellerName}">Seller</span>
+          <span class="stock-badge" th:classappend="${book.stock > 0 ? ' in-stock' : ' out-of-stock'}"
+                th:text="${book.stock > 0 ? 'In stock (' + book.stock + ')' : 'Out of stock'}">In stock</span>
+        </div>
+
+        <form class="cart-add-form" sec:authorize="hasAnyRole('BUYER','SELLER')" th:if="${canAddToCart}"
+              th:action="@{/buyer/cart/add}" method="post">
+          <input type="hidden" name="bookId" th:value="${book.id}">
+          <div class="cart-add-row">
+            <input class="qty-input" type="number" name="quantity" min="1" th:max="${book.stock}" value="1" aria-label="Quantity">
+            <button class="btn btn-block" type="submit">Add to cart</button>
+          </div>
+        </form>
+        <div class="cart-add-form" th:if="${isOwnBook}">
+          <button class="chat-placeholder-btn" type="button" disabled>Your listing</button>
+        </div>
+      </article>
+    </div>
+    <p><a th:href="@{/catalog}">&larr; Back to catalog</a></p>
+  </section>
+</main>
+
+<th:block th:replace="~{fragments/nav :: site-footer}"></th:block>
+</body>
+</html>

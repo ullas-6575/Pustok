@@ -4,24 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Resell &amp; Exchange | Pustok</title>
-  <link rel="stylesheet" th:href="@{/css/home.css}">
-  <link rel="stylesheet" th:href="@{/css/workspace.css}">
+  
+  <link rel="stylesheet" th:href="@{/css/base.css}"><link rel="stylesheet" th:href="@{/css/workspace.css}">
 </head>
 <body class="workspace-page">
-<header class="topbar">
-  <a class="logo" th:href="@{/}"><span class="logo-mark">p</span> pustok</a>
-  <nav aria-label="Account navigation">
-    <a th:href="@{/catalog}">Catalog</a>
-    <a class="active" th:href="@{/resell}">Resell &amp; Exchange</a>
-    <a th:href="@{/chat}">Messages</a>
-    <a th:href="@{/}">Discover</a>
-    <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer/cart}">Cart</a>
-    <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer/orders}">My orders</a>
-    <a sec:authorize="hasRole('SELLER')" th:href="@{/seller/books}">My books</a>
-    <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin}">Accounts</a>
-  </nav>
-  <form th:action="@{/signout}" method="post"><button class="signout">Sign out</button></form>
-</header>
+<th:block th:replace="~{fragments/nav :: site-header(active='resell')}"></th:block>
 
 <main class="workspace-shell">
   <div class="workspace-heading">
@@ -30,42 +17,42 @@
     <p>Any reader can list a used book to sell, or offer a book to exchange with another reader via chat (chat coming soon).</p>
   </div>
 
-  <p class="empty-state" th:if="${message}" th:text="${message}"></p>
-  <p class="empty-state" th:if="${error}" th:text="${error}"></p>
+  <p class="notice" th:if="${message}" th:text="${message}"></p>
+  <p class="notice error" th:if="${error}" th:text="${error}"></p>
 
   <div class="workspace-content">
-    <section class="panel">
+    <section class="panel" id="create-listing">
       <h2>Create a resell or exchange listing</h2>
-      <form th:action="@{/resell}" method="post">
-        <label class="field-label">Listing type
+      <form class="listing-form" th:action="@{/resell}" method="post">
+        <label class="field-label span-2">Listing type
           <select name="listingType" id="listingType" required onchange="toggleListingFields()">
             <option value="RESELL">Resell (Sell used book)</option>
             <option value="EXCHANGE">Exchange (Swap via chat)</option>
           </select>
         </label>
-        <label class="field-label">Book title
+        <label class="field-label span-2">Book title
           <input name="title" placeholder="Title" required maxlength="255">
         </label>
-        <label class="field-label">Author
+        <label class="field-label span-2">Author
           <input name="author" placeholder="Author" required maxlength="255">
         </label>
-        <label class="field-label">Condition
+        <label class="field-label span-2">Condition
           <select name="bookCondition" required>
             <option value="LIKE_NEW">Like New</option>
             <option value="GOOD">Good</option>
             <option value="FAIR">Fair</option>
           </select>
         </label>
-        <label class="field-label" id="priceField">Price (BDT)
+        <label class="field-label span-2" id="priceField">Price (BDT)
           <input name="price" id="priceInput" type="number" min="0.01" step="0.01" placeholder="e.g. 250.00" required>
         </label>
-        <label class="field-label" id="desiredBookField" style="display:none">Desired book for exchange
+        <label class="field-label span-2" id="desiredBookField" style="display:none">Desired book for exchange
           <input name="desiredBook" id="desiredBookInput" placeholder="e.g. Atomic Habits or Fiction" maxlength="255">
         </label>
-        <label class="field-label" style="flex-basis:100%">Notes (optional)
+        <label class="field-label span-all">Notes (optional)
           <input name="description" placeholder="Edition, highlights, pickup/shipping notes" maxlength="500">
         </label>
-        <button type="submit">Publish listing</button>
+        <button type="submit" class="listing-submit">Publish listing</button>
       </form>
     </section>
 
@@ -74,24 +61,27 @@
       <span th:text="${#lists.size(listings) + ' listings'}"></span>
     </div>
 
-    <p class="empty-state" th:if="${#lists.isEmpty(listings)}">You haven't listed any used books yet.</p>
+    <div class="empty-state" th:if="${#lists.isEmpty(listings)}">
+      <p>You haven't listed any used books yet.</p>
+      <a class="btn btn-sm" href="#create-listing">List a book</a>
+    </div>
 
     <article th:each="item : ${listings}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+      <div class="listing-row">
         <div>
           <span class="eyebrow" th:text="${item.listingType + ' • ' + item.bookCondition.replace('_', ' ') + ' • ' + item.status}">RESELL</span>
-          <h2 style="margin:6px 0 4px" th:text="${item.title}">Book Title</h2>
-          <p style="margin:0" th:text="${'by ' + item.author}"></p>
+          <h2 class="listing-title" th:text="${item.title}">Book Title</h2>
+          <p th:text="${'by ' + item.author}"></p>
           <p th:if="${item.listingType == 'RESELL' and item.price != null}" th:text="${'Price: BDT ' + item.price}"></p>
           <p th:if="${item.listingType == 'EXCHANGE'}" th:text="${'Exchange for: ' + item.desiredBook}"></p>
           <p th:if="${!#strings.isEmpty(item.description)}" th:text="${item.description}"></p>
         </div>
-        <div style="display:flex;gap:10px;align-items:center">
+        <div class="listing-actions">
           <form th:if="${item.status == 'AVAILABLE'}" th:action="@{/resell/{id}/close(id=${item.id})}" method="post">
-            <button type="submit" class="secondary-button">Mark closed</button>
+            <button type="submit" class="btn-secondary">Mark closed</button>
           </form>
           <form th:action="@{/resell/{id}/delete(id=${item.id})}" method="post">
-            <button type="submit" class="danger-button" style="margin-top:0">Delete</button>
+            <button type="submit" class="btn-danger">Delete</button>
           </form>
         </div>
       </div>
@@ -118,10 +108,6 @@
   }
 </script>
 
-<footer>
-  <a class="logo" th:href="@{/}"><span class="logo-mark">p</span> pustok</a>
-  <small>Made for the love of a good story.</small>
-  <small>&#169; 2026 Pustok Books</small>
-</footer>
+<th:block th:replace="~{fragments/nav :: site-footer}"></th:block>
 </body>
 </html>
