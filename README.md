@@ -6,6 +6,11 @@ Book marketplace built with Spring Boot, Thymeleaf and Supabase PostgreSQL.
 
 Browser signup, signin, JWT logout and a demo home page are implemented. Seller applications, admin approval, category CRUD and seller-owned book CRUD are implemented. Homepage books load from PostgreSQL. Shopping, payments, resale and exchange remain planned.
 
+## Tests
+
+- `./mvnw -B test` runs the unit tests (`*Test`). They need no database.
+- Integration tests (`*IT`) run through failsafe in `./mvnw -B verify`. They need a real database, which Day 2 adds, so they are not run yet.
+
 ## Run locally
 
 1. Install a compatible JDK. pom.xml targets Java 17; this workspace has run with Java 25.
