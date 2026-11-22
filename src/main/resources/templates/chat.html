@@ -4,37 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Exchange Chat | Pustok</title>
-  <link rel="stylesheet" th:href="@{/css/home.css}">
-  <link rel="stylesheet" th:href="@{/css/chat.css}">
+  
+  <link rel="stylesheet" th:href="@{/css/base.css}"><link rel="stylesheet" th:href="@{/css/chat.css}">
 </head>
 <body class="chat-page">
-<header class="topbar">
-  <a class="logo" th:href="@{/}"><span class="logo-mark">p</span> pustok</a>
-  <nav aria-label="Chat navigation">
-    <a th:href="@{/catalog}">Catalog</a>
-    <a th:href="@{/resell}">Resell &amp; Exchange</a>
-    <a class="active" th:href="@{/chat}">Messages</a>
-    <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer/cart}">Cart</a>
-    <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer/orders}">My Orders</a>
-    <a sec:authorize="hasRole('SELLER')" th:href="@{/seller/books}">My Books</a>
-    <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin}">Admin</a>
-  </nav>
-  <div class="account">
-    <span class="hello">Hi, <b th:text="${displayName}">reader</b></span>
-    <form th:action="@{/signout}" method="post">
-      <button class="signout" type="submit">Sign out</button>
-    </form>
-    <span class="avatar" th:text="${#strings.substring(displayName,0,1).toUpperCase()}">R</span>
-  </div>
-</header>
+<th:block th:replace="~{fragments/nav :: site-header(active='chat')}"></th:block>
 
 <main class="chat-shell">
-  <aside class="chat-sidebar" aria-label="Exchange conversations">
-    <div class="sidebar-head">
+  <aside class="chat-list" aria-label="Exchange conversations">
+    <div class="list-head">
       <span class="eyebrow">EXCHANGE NEGOTIATIONS</span>
       <h2>Your chats</h2>
     </div>
-    <p class="sidebar-empty" th:if="${#lists.isEmpty(conversations)}">
+    <p class="list-empty" th:if="${#lists.isEmpty(conversations)}">
       No exchange chats yet. Pick an Exchange book in the <a th:href="@{/catalog(type='exchange')}">Catalog</a> to start negotiating.
     </p>
     <ul class="conv-list" th:if="${!#lists.isEmpty(conversations)}">
@@ -73,7 +55,7 @@
           <span class="ws-status" id="wsStatus">Connecting...</span>
           <form th:if="${isListingOwner and activeListing != null and activeListing.status == 'AVAILABLE'}"
                 th:action="@{/resell/{id}/close(id=${activeListing.id})}" method="post">
-            <button class="close-deal-btn" type="submit">Mark Exchange Closed</button>
+            <button class="btn btn-secondary btn-sm" type="submit">Mark Exchange Closed</button>
           </form>
         </div>
       </div>

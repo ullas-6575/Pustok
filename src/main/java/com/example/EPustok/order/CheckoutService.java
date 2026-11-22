@@ -87,8 +87,8 @@ public class CheckoutService {
         }
         for (var r : resellLines) {
             jdbc.update(
-                    "INSERT INTO order_item(order_id,book_id,seller_id,title,unit_price,quantity) VALUES (?,NULL,?,?,?,1)",
-                    id, r.seller(), r.title(), r.price());
+                    "INSERT INTO order_item(order_id,book_id,listing_id,seller_id,title,unit_price,quantity) VALUES (?,NULL,?,?,?,?,1)",
+                    id, r.listingId(), r.seller(), r.title(), r.price());
             int changed = jdbc.update(
                     "UPDATE marketplace_resell_listings SET status='CLOSED' WHERE id=? AND status='AVAILABLE'",
                     r.listingId());

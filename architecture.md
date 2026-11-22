@@ -31,9 +31,17 @@ Keep CSRF for session-authenticated forms. Enforce roles and resource ownership 
 
 Repository exists through UserRepository. Planned patterns: Strategy/Factory for payments, State for order/exchange transitions, Observer for business events, Template Method for notification senders. Add real source links when implemented.
 
-## Pending decisions
+## Decisions
 
-The website uses JWT cookies; JSON APIs issue Bearer tokens. See docs/authentication.md. Keep public signup BUYER-only. Decide single-role versus multi-role before expanding authorization.
+**Authentication: stateless JWT, not HTTP sessions.** The website keeps the JWT in an HttpOnly cookie; JSON APIs send it as a Bearer token. Spring Security creates no session for authentication (`SessionCreationPolicy.STATELESS`), so there is no session ID to fix. Session fixation is therefore handled by token rotation: every successful signin invalidates any pre-login HTTP session and revokes the token the request presented before issuing a new one. See docs/authentication.md.
+
+**Authorization: one role per account (`User.role` holds one of BUYER, SELLER, ADMIN).** Reasons:
+- Every `@PreAuthorize`, `SecurityConfig` matcher, JWT subject lookup and `AdminService` check reads one role string. Moving to a role set would change all of them at once.
+- Seller status is a separate concept: a `SellerProfile` with PENDING, APPROVED or REJECTED status. Approval assigns SELLER; rejection keeps BUYER. The role therefore answers "what may this account do now", and the profile records the application.
+- Public signup always creates BUYER. Only an admin can grant ADMIN (see docs/admin-access.md).
+- Cost accepted: an account cannot hold two roles at once. An admin who also wants to buy needs a second account. A many-to-many role table is deferred unless the rubric requires it.
+
+Authorization for ownership (a seller editing only their own books, a buyer reading only their own orders) is enforced in services, not by role alone.
 
 
 JWT details: [Authentication guide](docs/authentication.md). Authentication is stateless; CSRF/flash state may still use an HTTP session.

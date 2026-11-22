@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Sign in | Pustok</title><link rel="stylesheet" th:href="@{/css/auth.css}"></head>
-<body><main class="card"><a class="brand" th:href="@{/}">Pustok</a><h1>Welcome back</h1><p class="muted">Sign in to continue to your account.</p>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Sign in | Pustok</title><link rel="stylesheet" th:href="@{/css/base.css}"><link rel="stylesheet" th:href="@{/css/auth.css}"></head>
+<body><th:block th:replace="~{fragments/nav :: site-header(active='signin')}"></th:block><main class="card"><a class="brand" th:href="@{/}">Pustok</a><h1>Welcome back</h1><p class="muted">Sign in to continue to your account.</p>
 <p class="notice" th:if="${message}" th:text="${message}"></p><p class="notice" th:if="${param.logout}">You have signed out.</p>
 <form th:action="@{/signin}" th:object="${form}" method="post">
 <div class="notice error" th:if="${#fields.hasGlobalErrors()}" th:errors="*{global}"></div>
-<label for="email">Email</label><input id="email" type="email" th:field="*{email}" autocomplete="email" required><small class="error" th:errors="*{email}"></small>
-<label for="password">Password</label><input id="password" type="password" th:field="*{password}" autocomplete="current-password" required><small class="error" th:errors="*{password}"></small>
-<button type="submit">Sign in</button></form><p class="foot">New to Pustok? <a th:href="@{/signup}">Create an account</a></p></main></body></html>
+<label for="email">Email</label><input id="email" type="email" th:field="*{email}" autocomplete="email" required><small class="field-error" th:errors="*{email}"></small>
+<label for="password">Password</label><input id="password" type="password" th:field="*{password}" autocomplete="current-password" required><small class="field-error" th:errors="*{password}"></small>
+<button type="submit">Sign in</button></form><p class="foot">New to Pustok? <a th:href="@{/signup}">Create an account</a></p></main><th:block th:replace="~{fragments/nav :: site-footer}"></th:block></body></html>

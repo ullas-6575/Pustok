@@ -26,3 +26,17 @@ JWT_SECRET is a Base64-encoded random key of at least 32 bytes. A random local k
 Set JWT_COOKIE_SECURE=true for HTTPS deployment; false supports localhost HTTP. Cookie path is /. Tokens contain subject, issuer, issued/expiry times and random jti, never passwords. There is no refresh token flow: sign in again after expiration.
 
 V2__jwt_revocation.sql creates the logout denylist. Let Flyway apply it on restart. Unit checks cover valid token claims, signature tampering and revocation. Full browser/API integration should also verify CSRF, expiry, login and logout against an isolated test database.
+
+## Session fixation and renewal
+
+Authentication state is the JWT, not an HTTP session, so there is no authenticated session ID for an attacker to fix. Two measures still apply:
+
+- Signin (`AuthController.signin`, `AuthApiController.login`) invalidates any existing HTTP session, which may hold pre-login state such as the CSRF token or flash messages, and then calls `JwtService.rotate`. Rotation revokes the token the request presented and issues a new one with a fresh `jti`. A stolen pre-login token therefore stops working after the victim signs in.
+- Logout runs through `JwtService.logout` only, for both `/signout` and `/api/auth/logout`. It revokes the presented token, clears the cookie and clears the security context.
+
+Covered by `AuthFlowTest.successfulLoginRotatesTokenAndInvalidatesPreLoginSession` and `AuthFlowTest.browserLogoutRevokesTokenAndClearsCookie`.
+
+## Routes
+
+`SecurityConfig` permits these `/api/auth` paths without authentication: `signup`, `register`, `signin`, `login` and `csrf`. Each has a handler in `AuthApiController` (signup and register, signin and login are aliases). `AuthFlowTest.permittedApiAuthPathsAllHaveHandlers` checks that none routes to nothing.
+

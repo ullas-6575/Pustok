@@ -4,34 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Catalog | Pustok</title>
-  <link rel="stylesheet" th:href="@{/css/home.css}">
-  <link rel="stylesheet" th:href="@{/css/catalog.css}">
+  
+  <link rel="stylesheet" th:href="@{/css/base.css}"><link rel="stylesheet" th:href="@{/css/catalog.css}">
 </head>
 <body class="catalog-page">
-<header class="topbar">
-  <a class="logo" th:href="@{/}"><span class="logo-mark">p</span> pustok</a>
-  <nav aria-label="Catalog navigation">
-    <a class="active" th:href="@{/catalog}">Catalog</a>
-    <a th:href="@{/resell}">Resell &amp; Exchange</a>
-    <a th:href="@{/chat}">Messages</a>
-    <a th:href="@{/}">Discover</a>
-    <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer/cart}"
-       th:text="${cartCount > 0 ? 'Cart (' + cartCount + ')' : 'Cart'}">Cart</a>
-    <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer/orders}">My Orders</a>
-    <a sec:authorize="hasRole('SELLER')" th:href="@{/seller/books}">My Books</a>
-    <a sec:authorize="hasRole('SELLER')" th:href="@{/seller/orders}">Seller Orders</a>
-    <a sec:authorize="hasRole('BUYER')" th:href="@{/buyer/seller-application}">Become a Seller</a>
-    <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin}">Admin</a>
-    <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:href="@{/buyer}">My account</a>
-  </nav>
-  <div class="account">
-    <span class="hello">Hi, <b th:text="${displayName}">reader</b></span>
-    <form th:action="@{/signout}" method="post">
-      <button class="signout" type="submit">Sign out</button>
-    </form>
-    <span class="avatar" th:text="${#strings.substring(displayName,0,1).toUpperCase()}">R</span>
-  </div>
-</header>
+<th:block th:replace="~{fragments/nav :: site-header(active='browse')}"></th:block>
 
 <main class="catalog-shell">
   <section class="catalog-hero">
@@ -41,12 +18,12 @@
       <p>New books from approved sellers alongside community resell and book exchange listings.</p>
     </div>
     <div class="catalog-meta">
-      <a class="list-book-btn" th:href="@{/resell}">+ List Used Book (Resell / Exchange)</a>
+      <a class="btn" th:href="@{/resell}">+ List Used Book (Resell / Exchange)</a>
       <span class="count-pill" th:text="${totalCount + (totalCount == 1 ? ' book available' : ' books available')}">0 books available</span>
     </div>
   </section>
 
-  <div class="cart-notice-bar" th:if="${message}" th:classappend="${cartError != null ? ' error' : ''}" role="status">
+  <div class="notice cart-notice-bar" th:if="${message}" th:classappend="${cartError != null ? ' error' : ''}" role="status">
     <span th:text="${message}">Book added to cart.</span>
     <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:if="${cartError == null}" th:href="@{/buyer/cart}">View cart &rarr;</a>
   </div>
@@ -77,12 +54,12 @@
   </section>
 
   <section class="catalog-grid-section" aria-label="Books">
-    <div class="empty-catalog" th:if="${totalCount == 0}">
+    <div class="empty-state" th:if="${totalCount == 0}">
       <span class="empty-symbol" aria-hidden="true">&#10042;</span>
       <h2>No books found.</h2>
       <p th:if="${!#strings.isEmpty(query) or selectedCategoryId != null or selectedType != 'all'}">No listings match your current filter.</p>
       <p th:if="${#strings.isEmpty(query) and selectedCategoryId == null and selectedType == 'all'}">No books have been listed yet. Sellers and readers can add books anytime.</p>
-      <a class="reset-btn" th:if="${!#strings.isEmpty(query) or selectedCategoryId != null or selectedType != 'all'}" th:href="@{/catalog}">Show all books</a>
+      <a class="btn" th:if="${!#strings.isEmpty(query) or selectedCategoryId != null or selectedType != 'all'}" th:href="@{/catalog}">Show all books</a>
     </div>
 
     <div class="book-grid" th:if="${totalCount > 0}">
@@ -96,7 +73,7 @@
 
         <div class="book-info">
           <div>
-            <b th:text="${b.title}">Book Title</b>
+            <a class="book-link" th:href="@{/catalog/books/{id}(id=${b.id})}"><b th:text="${b.title}">Book Title</b></a>
             <span th:text="${b.author}">Author</span>
           </div>
           <strong th:text="${'BDT ' + #numbers.formatDecimal(b.price,1,'COMMA',2,'POINT')}">BDT 0.00</strong>
@@ -117,7 +94,7 @@
             <input class="qty-input" type="number" name="quantity" min="1"
                    th:max="${b.stock > 0 ? b.stock : 1}" value="1"
                    th:disabled="${b.stock < 1}" aria-label="Quantity">
-            <button class="add-cart-btn" type="submit" th:disabled="${b.stock < 1}"
+            <button class="btn btn-block" type="submit" th:disabled="${b.stock < 1}"
                     th:text="${b.stock > 0 ? 'Add to cart' : 'Unavailable'}">Add to cart</button>
           </div>
         </form>
@@ -159,7 +136,7 @@
               th:action="@{/buyer/cart/resell/add}" method="post">
           <input type="hidden" name="listingId" th:value="${r.id}">
           <input type="hidden" name="redirectTo" value="/catalog">
-          <button class="add-cart-btn" type="submit">Add to cart</button>
+          <button class="btn btn-block" type="submit">Add to cart</button>
         </form>
         <div class="cart-add-form" sec:authorize="hasAnyRole('BUYER','SELLER')"
              th:if="${r.listingType == 'RESELL' and currentUserId != null and currentUserId.equals(r.userId)}">
@@ -168,21 +145,22 @@
         <form class="cart-add-form"
               th:if="${r.listingType == 'EXCHANGE' and (currentUserId == null or !currentUserId.equals(r.userId))}"
               th:action="@{/chat/exchange/{id}(id=${r.id})}" method="post">
-          <button class="add-cart-btn" type="submit">Negotiate via Chat</button>
+          <button class="btn btn-block" type="submit">Negotiate via Chat</button>
         </form>
         <div class="cart-add-form"
              th:if="${r.listingType == 'EXCHANGE' and currentUserId != null and currentUserId.equals(r.userId)}">
-          <a class="add-cart-btn" th:href="@{/chat}" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;">View chat offers</a>
+          <a class="btn btn-block" th:href="@{/chat}" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;">View chat offers</a>
         </div>
       </article>
     </div>
+    <nav class="pagination" th:if="${totalPages > 1}" aria-label="Book pages">
+      <a th:if="${hasPrevious}" th:href="@{/catalog(page=${currentPage - 1}, categoryId=${selectedCategoryId}, type=${selectedType}, q=${#strings.isEmpty(query) ? null : query})}">&larr; Previous</a>
+      <span th:text="${'Page ' + (currentPage + 1) + ' of ' + totalPages}">Page 1 of 1</span>
+      <a th:if="${hasNext}" th:href="@{/catalog(page=${currentPage + 1}, categoryId=${selectedCategoryId}, type=${selectedType}, q=${#strings.isEmpty(query) ? null : query})}">Next &rarr;</a>
+    </nav>
   </section>
 </main>
 
-<footer>
-  <a class="logo" th:href="@{/}"><span class="logo-mark">p</span> pustok</a>
-  <small>Made for the love of a good story.</small>
-  <small>&#169; 2026 Pustok Books</small>
-</footer>
+<th:block th:replace="~{fragments/nav :: site-footer}"></th:block>
 </body>
 </html>
