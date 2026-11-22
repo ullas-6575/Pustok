@@ -32,7 +32,8 @@ class JwtAccessTest {
         @Bean UserRepository users() { return mock(UserRepository.class); }
         @Bean JdbcTemplate jdbc() { return mock(JdbcTemplate.class); }
         @Bean JwtService tokens(JdbcTemplate jdbc) { return new JwtService(Base64.getEncoder().encodeToString(new byte[32]),false,jdbc); }
-        @Bean AuthApiController auth(AuthenticationManager manager,JwtService jwt,UserRepository users,PasswordEncoder encoder) { return new AuthApiController(manager,jwt,users,encoder); }
+        @Bean RegistrationService registration(UserRepository users,PasswordEncoder encoder) { return new RegistrationService(users,encoder); }
+        @Bean AuthApiController auth(AuthenticationManager manager,JwtService jwt,RegistrationService registration) { return new AuthApiController(manager,jwt,registration); }
         @Bean AdminService adminService(UserRepository users) { return new AdminService(users); }
         @Bean AdminApiController adminApi(AdminService admin) { return new AdminApiController(admin); }
         @Bean Probe probe() { return new Probe(); }

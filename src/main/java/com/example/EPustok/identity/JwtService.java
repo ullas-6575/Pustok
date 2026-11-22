@@ -7,6 +7,7 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,31 @@ public class JwtService {
         Jwt jwt = decoder.decode(token);
         jdbc.update("insert into identity_revoked_tokens(token_id, expires_at) values (?, ?) on conflict do nothing",
                 jwt.getId(), java.sql.Timestamp.from(jwt.getExpiresAt()));
+    }
+    /** Revokes the presented token when it is still valid, then clears the browser cookie. Used by browser and API logout. */
+    public void logout(HttpServletRequest request, HttpServletResponse response) {
+        String token = extract(request);
+        if (token != null) {
+            try {
+                revoke(token);
+            } catch (JwtException ignored) {
+                // Malformed, forged or already expired: nothing valid to revoke.
+            }
+        }
+        cookie(response, "");
+        SecurityContextHolder.clearContext();
+    }
+    /** Issues a new token and revokes the one presented with the request, so every login rotates credentials. */
+    public String rotate(HttpServletRequest request, String email) {
+        String previous = extract(request);
+        if (previous != null) {
+            try {
+                revoke(previous);
+            } catch (JwtException ignored) {
+                // Nothing valid to rotate away from.
+            }
+        }
+        return issue(email);
     }
     public String extract(HttpServletRequest request) {
         String header = request.getHeader("Authorization");

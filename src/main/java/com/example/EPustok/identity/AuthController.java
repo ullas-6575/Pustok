@@ -2,6 +2,7 @@ package com.example.EPustok.identity;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -9,8 +10,6 @@ import jakarta.validation.constraints.Size;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -19,13 +18,12 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 public class AuthController {
-    private final UserRepository users;
-    private final PasswordEncoder passwordEncoder;
+    private final RegistrationService registration;
     private final AuthenticationManager authenticationManager;
     private final JwtService tokens;
 
-    public AuthController(UserRepository users, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, JwtService tokens) {
-        this.users = users; this.passwordEncoder = passwordEncoder; this.authenticationManager = authenticationManager; this.tokens = tokens;
+    public AuthController(RegistrationService registration, AuthenticationManager authenticationManager, JwtService tokens) {
+        this.registration = registration; this.authenticationManager = authenticationManager; this.tokens = tokens;
     }
 
     @GetMapping("/signup")
@@ -34,12 +32,15 @@ public class AuthController {
     @PostMapping("/signup")
     public String signup(@Valid @ModelAttribute("form") SignupForm form, BindingResult errors, RedirectAttributes redirect) {
         if (errors.hasErrors()) return "auth/signup";
-        String email = form.getEmail().trim().toLowerCase();
-        if (users.existsByEmailIgnoreCase(email)) {
-            errors.rejectValue("email", "duplicate", "This email is already registered");
+        try {
+            registration.register(form.getName(), form.getEmail(), form.getPassword());
+        } catch (RegistrationService.DuplicateEmailException ex) {
+            errors.rejectValue("email", "duplicate", ex.getMessage());
+            return "auth/signup";
+        } catch (RegistrationService.InvalidPasswordException ex) {
+            errors.rejectValue("password", "bytes", ex.getMessage());
             return "auth/signup";
         }
-        users.save(new User(form.getName().trim(), email, passwordEncoder.encode(form.getPassword())));
         redirect.addFlashAttribute("message", "Account created. Please sign in.");
         return "redirect:/signin";
     }
@@ -52,8 +53,11 @@ public class AuthController {
         if (errors.hasErrors()) return "auth/signin";
         try {
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(form.getEmail().trim().toLowerCase(), form.getPassword()));
-            tokens.cookie(response, tokens.issue(authentication.getName()));
+                    new UsernamePasswordAuthenticationToken(form.getEmail().trim().toLowerCase(java.util.Locale.ROOT), form.getPassword()));
+            // Renew the pre-login state: drop any HTTP session (flash/CSRF leftovers) and rotate the JWT.
+            HttpSession session = request.getSession(false);
+            if (session != null) session.invalidate();
+            tokens.cookie(response, tokens.rotate(request, authentication.getName()));
             return "redirect:/catalog";
         } catch (org.springframework.security.core.AuthenticationException ex) {
             errors.reject("invalid", "Email or password is incorrect");
@@ -62,11 +66,8 @@ public class AuthController {
     }
 
     @PostMapping("/signout")
-    public String signout(HttpServletRequest request, jakarta.servlet.http.HttpServletResponse response) {
-        String token = tokens.extract(request);
-        if (token != null) tokens.revoke(token);
-        tokens.cookie(response, "");
-        SecurityContextHolder.clearContext();
+    public String signout(HttpServletRequest request, HttpServletResponse response) {
+        tokens.logout(request, response);
         return "redirect:/signin?logout";
     }
 
@@ -85,5 +86,3 @@ public class AuthController {
         public String getPassword(){return password;} public void setPassword(String v){password=v;}
     }
 }
-
-
