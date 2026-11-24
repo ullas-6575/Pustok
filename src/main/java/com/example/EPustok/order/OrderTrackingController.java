@@ -6,12 +6,14 @@ import org.springframework.ui.Model;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.server.ResponseStatusException;
+import com.example.EPustok.payment.PaymentGatewayFactory;
 @Controller public class OrderTrackingController {
 private final OrderTracking orders;
-public OrderTrackingController(OrderTracking orders){this.orders=orders;}
+private final PaymentGatewayFactory gateways;
+public OrderTrackingController(OrderTracking orders,PaymentGatewayFactory gateways){this.orders=orders;this.gateways=gateways;}
 @GetMapping("/buyer/orders") public String mine(Authentication a,@RequestParam(defaultValue="0") int page,Model m){m.addAttribute("orders",orders.mine(a.getName(),page));m.addAttribute("adminView",false);m.addAttribute("page",page);return "orders";}
 @PostMapping("/buyer/orders/{id}/cancel") public String cancel(Authentication a,@PathVariable UUID id,RedirectAttributes flash){try{orders.cancel(a.getName(),id);flash.addFlashAttribute("message","Order cancelled. Stock has been restored.");}catch(ResponseStatusException e){if(e.getStatusCode().value()==404)throw e;flash.addFlashAttribute("message",e.getReason());}return "redirect:/buyer/orders/"+id;}
 @GetMapping("/admin/orders") public String all(@RequestParam(defaultValue="0") int page,Model m){m.addAttribute("orders",orders.all(page));m.addAttribute("adminView",true);m.addAttribute("page",page);return "orders";}
-@GetMapping("/admin/orders/{id}") public String detail(@PathVariable UUID id,Model m){m.addAttribute("order",orders.detail(id));m.addAttribute("items",orders.items(id));m.addAttribute("adminView",true);return "order-confirmation";}
+@GetMapping("/admin/orders/{id}") public String detail(@PathVariable UUID id,Model m){m.addAttribute("order",orders.detail(id));m.addAttribute("items",orders.items(id));m.addAttribute("adminView",true);m.addAttribute("mockPaymentsEnabled",gateways.isMockEnabled());return "order-confirmation";}
 @PostMapping("/admin/orders/{id}/status") public String status(@PathVariable UUID id,@RequestParam OrderTracking.Status status,RedirectAttributes flash){try{orders.advance(id,status);}catch(ResponseStatusException e){flash.addFlashAttribute("message",e.getReason());}return "redirect:/admin/orders/"+id;}
 }

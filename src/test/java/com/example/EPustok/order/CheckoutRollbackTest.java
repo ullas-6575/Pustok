@@ -32,7 +32,7 @@ import static org.mockito.Mockito.*;
  * Checks the checkout transaction boundary without a database. The cart has two lines that pass the
  * pre-checks: book 11 decrements, then book 12's conditional UPDATE finds its stock already gone.
  * The transaction manager must roll back, never commit. Rolling back undoes the first decrement in PostgreSQL.
- * The row-level proof against real PostgreSQL is CheckoutServiceIT (BLOCKED until Testcontainers exists).
+ * The row-level proof against real PostgreSQL is CheckoutConcurrencyIT (Testcontainers).
  */
 class CheckoutRollbackTest {
 	private static final String EMAIL = "b@example.com";
@@ -53,8 +53,11 @@ class CheckoutRollbackTest {
 					() -> context.getBean(CheckoutService.class).place(EMAIL, "Recipient", "01234567890", "Dhaka", UUID.randomUUID()));
 
 			assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
-			// Both decrements were attempted: the first succeeded in the transaction, the second failed.
+			assertEquals("Stock changed for Second. Update your cart.", ex.getReason());
+			// Both conditional decrements were attempted: the first succeeded in the transaction, the second matched no row.
 			verify(jdbc, times(2)).update(startsWith("UPDATE book SET stock"), any(Object[].class));
+			// Stock is reserved before any order row, so the failure happens before the order INSERT.
+			verify(jdbc, never()).update(startsWith("INSERT INTO purchase_order"), ArgumentMatchers.<Object>any());
 			verify(tm).rollback(any(TransactionStatus.class));
 			verify(tm, never()).commit(any(TransactionStatus.class));
 			// The cart is cleared only after every decrement succeeds, so this failure must not reach that step.
@@ -86,7 +89,7 @@ class CheckoutRollbackTest {
 		return context;
 	}
 
-	/** Cart rows: book 11 and book 12, both with stock 5. Only the decrement for failingBook reports zero rows. */
+	/** Cart rows: book 11 and book 12, each quantity 1. Only the decrement for failingBook reports zero rows. */
 	private static org.mockito.stubbing.Answer<Object> fakeDatabase(long failingBook) {
 		return invocation -> {
 			Object[] args = invocation.getArguments();
@@ -106,21 +109,21 @@ class CheckoutRollbackTest {
 				@SuppressWarnings("unchecked")
 				RowMapper<Object> mapper = (RowMapper<Object>) args[1];
 				return List.of(
-						mapper.mapRow(bookRow(11L, 8L, "First", "10.00", 5, 1), 1),
-						mapper.mapRow(bookRow(12L, 8L, "Second", "5.00", 5, 1), 1));
+						mapper.mapRow(bookRow(11L, 8L, "First", "10.00", 1), 1),
+						mapper.mapRow(bookRow(12L, 8L, "Second", "5.00", 1), 1));
 			}
 			return List.of();
 		};
 	}
 
-	private static ResultSet bookRow(long book, long seller, String title, String price, int stock, int quantity) throws Exception {
+	/** Columns in the order CheckoutService reads them: book id, seller id, title, price, quantity. */
+	private static ResultSet bookRow(long book, long seller, String title, String price, int quantity) throws Exception {
 		ResultSet rs = mock(ResultSet.class);
 		when(rs.getLong(1)).thenReturn(book);
 		when(rs.getLong(2)).thenReturn(seller);
 		when(rs.getString(3)).thenReturn(title);
 		when(rs.getBigDecimal(4)).thenReturn(new BigDecimal(price));
-		when(rs.getInt(5)).thenReturn(stock);
-		when(rs.getInt(6)).thenReturn(quantity);
+		when(rs.getInt(5)).thenReturn(quantity);
 		return rs;
 	}
 

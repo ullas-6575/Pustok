@@ -26,6 +26,7 @@ assertEquals(3,jdbc.queryForObject("SELECT stock FROM book WHERE id=?",Integer.c
 assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM cart_item WHERE user_id=?",Integer.class,buyer.getId()));
 assertEquals(new BigDecimal("251.00"),checkout.order(email,id).get("total"));
 assertEquals(id,checkout.place(email,"Recipient","01234567890","Dhaka",request));
+assertTrue(checkout.place(email,"Recipient","01234567890","Dhaka",request,null).replayed());
 assertEquals(3,jdbc.queryForObject("SELECT stock FROM book WHERE id=?",Integer.class,book));
 assertThrows(org.springframework.web.server.ResponseStatusException.class,()->checkout.order(seller.getEmail(),id));
 }
