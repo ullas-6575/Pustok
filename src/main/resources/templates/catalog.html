@@ -13,41 +13,45 @@
 <main class="catalog-shell">
   <section class="catalog-hero">
     <div class="catalog-heading">
-      <span class="eyebrow"><i></i> PUSTOK MARKETPLACE</span>
-      <h1>Browse the catalog.</h1>
+      <h1>Browse the catalog</h1>
       <p>New books from approved sellers alongside community resell and book exchange listings.</p>
     </div>
     <div class="catalog-meta">
-      <a class="btn" th:href="@{/resell}">+ List Used Book (Resell / Exchange)</a>
+      <a class="btn" th:href="@{/resell}">List a used book (resell or exchange)</a>
       <span class="count-pill" th:text="${totalCount + (totalCount == 1 ? ' book available' : ' books available')}">0 books available</span>
     </div>
   </section>
 
   <div class="notice cart-notice-bar" th:if="${message}" th:classappend="${cartError != null ? ' error' : ''}" role="status">
     <span th:text="${message}">Book added to cart.</span>
-    <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:if="${cartError == null}" th:href="@{/buyer/cart}">View cart &rarr;</a>
+    <a sec:authorize="hasAnyRole('BUYER','SELLER')" th:if="${cartError == null}" th:href="@{/buyer/cart}">View cart</a>
   </div>
 
   <section class="catalog-controls" aria-label="Filter catalog">
     <form class="search-form" th:action="@{/catalog}" method="get">
       <input type="hidden" name="type" th:if="${selectedType != null and selectedType != 'all'}" th:value="${selectedType}">
       <input type="hidden" name="categoryId" th:if="${selectedCategoryId != null}" th:value="${selectedCategoryId}">
-      <input type="search" name="q" th:value="${query}" placeholder="Search by title, author, or desired exchange book..." aria-label="Search books">
+      <input type="search" name="q" th:value="${query}" maxlength="100" placeholder="Search by title, author, or desired exchange book..." aria-label="Search books">
       <button type="submit">Search</button>
       <a class="clear-link" th:if="${!#strings.isEmpty(query) or selectedCategoryId != null or (selectedType != null and selectedType != 'all')}" th:href="@{/catalog}">Reset</a>
     </form>
 
     <div class="category-pills" role="navigation" aria-label="Listing type">
       <a class="pill" th:classappend="${selectedType == 'all' and selectedCategoryId == null ? ' active' : ''}"
+         th:aria-current="${selectedType == 'all' and selectedCategoryId == null ? 'page' : null}"
          th:href="@{/catalog(q=${#strings.isEmpty(query) ? null : query})}">All</a>
       <a class="pill" th:classappend="${selectedType == 'new' ? ' active' : ''}"
+         th:aria-current="${selectedType == 'new' ? 'page' : null}"
          th:href="@{/catalog(type='new', q=${#strings.isEmpty(query) ? null : query})}">New Books</a>
       <a class="pill pill-resell" th:classappend="${selectedType == 'resell' ? ' active' : ''}"
+         th:aria-current="${selectedType == 'resell' ? 'page' : null}"
          th:href="@{/catalog(type='resell', q=${#strings.isEmpty(query) ? null : query})}">Resell (Used)</a>
       <a class="pill pill-exchange" th:classappend="${selectedType == 'exchange' ? ' active' : ''}"
+         th:aria-current="${selectedType == 'exchange' ? 'page' : null}"
          th:href="@{/catalog(type='exchange', q=${#strings.isEmpty(query) ? null : query})}">Exchange</a>
       <a class="pill" th:each="c : ${categories}"
          th:classappend="${selectedCategoryId != null and selectedCategoryId == c.id ? ' active' : ''}"
+         th:aria-current="${selectedCategoryId != null and selectedCategoryId == c.id ? 'page' : null}"
          th:href="@{/catalog(categoryId=${c.id}, q=${#strings.isEmpty(query) ? null : query})}"
          th:text="${c.name}">Category</a>
     </div>
@@ -55,7 +59,6 @@
 
   <section class="catalog-grid-section" aria-label="Books">
     <div class="empty-state" th:if="${totalCount == 0}">
-      <span class="empty-symbol" aria-hidden="true">&#10042;</span>
       <h2>No books found.</h2>
       <p th:if="${!#strings.isEmpty(query) or selectedCategoryId != null or selectedType != 'all'}">No listings match your current filter.</p>
       <p th:if="${#strings.isEmpty(query) and selectedCategoryId == null and selectedType == 'all'}">No books have been listed yet. Sellers and readers can add books anytime.</p>
@@ -73,7 +76,7 @@
 
         <div class="book-info">
           <div>
-            <a class="book-link" th:href="@{/catalog/books/{id}(id=${b.id})}"><b th:text="${b.title}">Book Title</b></a>
+            <a class="book-link" th:href="@{/catalog/books/{id}(id=${b.id})}"><h2 th:text="${b.title}">Book Title</h2></a>
             <span th:text="${b.author}">Author</span>
           </div>
           <strong th:text="${'BDT ' + #numbers.formatDecimal(b.price,1,'COMMA',2,'POINT')}">BDT 0.00</strong>
@@ -95,6 +98,7 @@
                    th:max="${b.stock > 0 ? b.stock : 1}" value="1"
                    th:disabled="${b.stock < 1}" aria-label="Quantity">
             <button class="btn btn-block" type="submit" th:disabled="${b.stock < 1}"
+                    th:aria-label="${b.stock > 0 ? 'Add ' + b.title + ' to cart' : 'Unavailable: ' + b.title}"
                     th:text="${b.stock > 0 ? 'Add to cart' : 'Unavailable'}">Add to cart</button>
           </div>
         </form>
@@ -107,19 +111,19 @@
       <article class="book-card catalog-card community-card" th:each="r, state : ${resellListings}">
         <div class="book-cover"
              th:classappend="${r.listingType == 'EXCHANGE' ? 'cover-three' : 'cover-four'}">
-          <span class="tag" th:text="${r.listingType == 'EXCHANGE' ? 'EXCHANGE' : 'RESELL • ' + r.bookCondition.replace('_', ' ')}">RESELL</span>
+          <span class="tag" th:text="${r.listingType == 'EXCHANGE' ? 'Exchange' : 'Resell • ' + #strings.capitalize(#strings.toLowerCase(r.bookCondition.replace('_', ' ')))}">Resell</span>
           <div class="book-name" th:text="${r.title}">Used Book Title</div>
           <small th:text="${r.author}">Author</small>
         </div>
 
         <div class="book-info">
           <div>
-            <b th:text="${r.title}">Used Book Title</b>
+            <h2 th:text="${r.title}">Used Book Title</h2>
             <span th:text="${r.author}">Author</span>
           </div>
           <strong th:if="${r.listingType == 'RESELL' and r.price != null}"
                   th:text="${'BDT ' + #numbers.formatDecimal(r.price,1,'COMMA',2,'POINT')}">BDT 0.00</strong>
-          <strong class="exchange-tag" th:if="${r.listingType == 'EXCHANGE'}">SWAP</strong>
+          <strong class="exchange-tag" th:if="${r.listingType == 'EXCHANGE'}">Swap</strong>
         </div>
 
         <p class="desired-book" th:if="${r.listingType == 'EXCHANGE'}"
@@ -128,7 +132,7 @@
 
         <div class="catalog-meta-row">
           <span class="seller-badge" th:text="${'Listed by: ' + (listerNames[r.userId] != null ? listerNames[r.userId] : 'Reader')}">Reader</span>
-          <span class="condition-badge" th:text="${r.bookCondition.replace('_', ' ')}">GOOD</span>
+          <span class="condition-badge" th:text="${#strings.capitalize(#strings.toLowerCase(r.bookCondition.replace('_', ' ')))}">Good</span>
         </div>
 
         <form class="cart-add-form" sec:authorize="hasAnyRole('BUYER','SELLER')"
@@ -136,27 +140,41 @@
               th:action="@{/buyer/cart/resell/add}" method="post">
           <input type="hidden" name="listingId" th:value="${r.id}">
           <input type="hidden" name="redirectTo" value="/catalog">
-          <button class="btn btn-block" type="submit">Add to cart</button>
+          <button class="btn btn-block" type="submit" th:aria-label="${'Add ' + r.title + ' to cart'}">Add to cart</button>
         </form>
         <div class="cart-add-form" sec:authorize="hasAnyRole('BUYER','SELLER')"
              th:if="${r.listingType == 'RESELL' and currentUserId != null and currentUserId.equals(r.userId)}">
           <button class="chat-placeholder-btn" type="button" disabled>Your resell listing</button>
         </div>
-        <form class="cart-add-form"
+
+        <form class="cart-add-form" sec:authorize="hasAnyRole('BUYER','SELLER')"
               th:if="${r.listingType == 'EXCHANGE' and (currentUserId == null or !currentUserId.equals(r.userId))}"
               th:action="@{/chat/exchange/{id}(id=${r.id})}" method="post">
-          <button class="btn btn-block" type="submit">Negotiate via Chat</button>
+          <button class="btn btn-block" type="submit" th:aria-label="${'Negotiate via chat for ' + r.title}">Negotiate via Chat</button>
         </form>
+        <details class="offer-form" sec:authorize="hasAnyRole('BUYER','SELLER')"
+                 th:if="${r.listingType == 'EXCHANGE' and (currentUserId == null or !currentUserId.equals(r.userId))}">
+          <summary>Make an offer with your book</summary>
+          <form class="cart-add-form" th:action="@{/resell/{id}/offers(id=${r.id})}" method="post">
+            <label>Your book's title
+              <input name="offeredTitle" required maxlength="255">
+            </label>
+            <label>Author
+              <input name="offeredAuthor" required maxlength="255">
+            </label>
+            <button class="btn btn-block" type="submit" th:aria-label="${'Send offer for ' + r.title}">Send offer</button>
+          </form>
+        </details>
         <div class="cart-add-form"
              th:if="${r.listingType == 'EXCHANGE' and currentUserId != null and currentUserId.equals(r.userId)}">
-          <a class="btn btn-block" th:href="@{/chat}" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;">View chat offers</a>
+          <a class="btn btn-block" th:href="@{/chat}">View chat offers</a>
         </div>
       </article>
     </div>
-    <nav class="pagination" th:if="${totalPages > 1}" aria-label="Book pages">
-      <a th:if="${hasPrevious}" th:href="@{/catalog(page=${currentPage - 1}, categoryId=${selectedCategoryId}, type=${selectedType}, q=${#strings.isEmpty(query) ? null : query})}">&larr; Previous</a>
+    <nav class="pagination" th:if="${totalPages > 1}" aria-label="Pages">
+      <a th:if="${hasPrevious}" th:href="@{/catalog(page=${currentPage - 1}, categoryId=${selectedCategoryId}, type=${selectedType}, q=${#strings.isEmpty(query) ? null : query})}">Previous</a>
       <span th:text="${'Page ' + (currentPage + 1) + ' of ' + totalPages}">Page 1 of 1</span>
-      <a th:if="${hasNext}" th:href="@{/catalog(page=${currentPage + 1}, categoryId=${selectedCategoryId}, type=${selectedType}, q=${#strings.isEmpty(query) ? null : query})}">Next &rarr;</a>
+      <a th:if="${hasNext}" th:href="@{/catalog(page=${currentPage + 1}, categoryId=${selectedCategoryId}, type=${selectedType}, q=${#strings.isEmpty(query) ? null : query})}">Next</a>
     </nav>
   </section>
 </main>

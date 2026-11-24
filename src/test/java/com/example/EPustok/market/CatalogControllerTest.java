@@ -1,6 +1,5 @@
 package com.example.EPustok.market;
 
-import com.example.EPustok.cart.CartService;
 import com.example.EPustok.identity.User;
 import com.example.EPustok.identity.UserRepository;
 import java.math.BigDecimal;
@@ -8,6 +7,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.ui.ExtendedModelMap;
@@ -15,6 +19,7 @@ import org.springframework.ui.Model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyIterable;
 import static org.mockito.Mockito.mock;
@@ -24,14 +29,20 @@ import static org.mockito.Mockito.when;
 
 class CatalogControllerTest {
 
+    /** Community listings come from the database already filtered and paged; the stub returns one page of them. */
+    private static ResellListings communityReturns(ResellListing... items) {
+        ResellListings listings = mock(ResellListings.class);
+        when(listings.findAll(any(Specification.class), any(Pageable.class)))
+                .thenAnswer(inv -> new PageImpl<>(List.of(items), inv.<Pageable>getArgument(1), items.length));
+        return listings;
+    }
+
     @Test
     void everyUserSeesSameSellerListedBooksAndCommunityListings() {
         Books books = mock(Books.class);
         Categories categories = mock(Categories.class);
         SellerProfiles profiles = mock(SellerProfiles.class);
-        ResellListings resellListings = mock(ResellListings.class);
         UserRepository users = mock(UserRepository.class);
-        CartService cart = mock(CartService.class);
 
         Category fiction = new Category("Fiction");
         Book book1 = new Book(10L);
@@ -43,20 +54,18 @@ class CatalogControllerTest {
                 new BigDecimal("180.00"), null, "Clean copy");
         ResellListing exchange = new ResellListing(21L, "EXCHANGE", "1984", "George Orwell", "LIKE_NEW",
                 null, "Brave New World", "Open to swap");
+        ResellListings resellListings = communityReturns(resell, exchange);
 
-        when(books.findAll(org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<Book>>any(),
-                org.mockito.ArgumentMatchers.<org.springframework.data.domain.Pageable>any()))
-                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(book1, book2)));
+        when(books.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(book1, book2)));
         when(categories.findAll()).thenReturn(List.of(fiction));
         when(profiles.findAllById(anyIterable())).thenReturn(List.of(
                 new SellerProfile(10L, "Leaf & Spine", "01700000000", "Dhaka"),
                 new SellerProfile(11L, "Paperhouse", "01800000000", "Chattogram")
         ));
-        when(resellListings.findByStatusOrderByCreatedAtDesc("AVAILABLE")).thenReturn(List.of(resell, exchange));
         when(users.findNamesByIdIn(anyCollection())).thenReturn(List.of(name(20L, "Reader"), name(21L, "Scholar")));
-        when(cart.count("buyer@example.com")).thenReturn(2);
 
-        CatalogController controller = new CatalogController(books, categories, profiles, resellListings, users, cart);
+        CatalogController controller = new CatalogController(books, categories, profiles, resellListings, users);
 
         Model buyerModel = new ExtendedModelMap();
         String buyerView = controller.catalog(null, null, null, 0,
@@ -89,7 +98,6 @@ class CatalogControllerTest {
     void modelHoldsOnlyDisplayNamesNeverUserEntitiesOrPasswordHashes() {
         Books books = mock(Books.class);
         SellerProfiles profiles = mock(SellerProfiles.class);
-        ResellListings resellListings = mock(ResellListings.class);
         UserRepository users = mock(UserRepository.class);
 
         Category fiction = new Category("Fiction");
@@ -98,18 +106,15 @@ class CatalogControllerTest {
         ResellListing resell = new ResellListing(20L, "RESELL", "Used Dune", "Frank Herbert", "GOOD",
                 new BigDecimal("180.00"), null, "Clean copy");
 
-        when(books.findAll(org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<Book>>any(),
-                org.mockito.ArgumentMatchers.<org.springframework.data.domain.Pageable>any()))
-                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(book)));
+        when(books.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(book)));
         when(profiles.findAllById(anyIterable())).thenReturn(List.of(
                 new SellerProfile(10L, "Leaf & Spine", "01700000000", "Dhaka")));
-        when(resellListings.findByStatusOrderByCreatedAtDesc("AVAILABLE")).thenReturn(List.of(resell));
         when(users.findNamesByIdIn(anyCollection())).thenReturn(List.of(name(20L, "Reader")));
         when(users.findByEmailIgnoreCase("buyer@example.com"))
                 .thenReturn(Optional.of(new User("Buyer", "buyer@example.com", "secret-hash")));
 
         CatalogController controller = new CatalogController(books, mock(Categories.class), profiles,
-                resellListings, users, mock(CartService.class));
+                communityReturns(resell), users);
         Model model = new ExtendedModelMap();
         controller.catalog(null, null, null, 0,
                 new UsernamePasswordAuthenticationToken("buyer@example.com", "pw",
@@ -154,41 +159,51 @@ class CatalogControllerTest {
     }
 
     @Test
-    void filtersByResellAndExchangeTypesAndSearchQuery() {
+    void resellAndExchangeViewsShowOnlyCommunityListingsReturnedByTheDatabase() {
         Books books = mock(Books.class);
         Categories categories = mock(Categories.class);
         SellerProfiles profiles = mock(SellerProfiles.class);
-        ResellListings resellListings = mock(ResellListings.class);
         UserRepository users = mock(UserRepository.class);
-        CartService cart = mock(CartService.class);
-
-        Category fiction = new Category("Fiction");
-        Book book1 = new Book(10L);
-        book1.update("The Quiet Atlas", "Ella Morrow", new BigDecimal("450.00"), 5, fiction);
 
         ResellListing resell = new ResellListing(20L, "RESELL", "Used Dune", "Frank Herbert", "GOOD",
                 new BigDecimal("180.00"), null, "Clean copy");
         ResellListing exchange = new ResellListing(21L, "EXCHANGE", "1984", "George Orwell", "LIKE_NEW",
                 null, "Brave New World", "Open to swap");
+        ResellListings resellListings = mock(ResellListings.class);
+        when(resellListings.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(resell)))
+                .thenReturn(new PageImpl<>(List.of(exchange)));
 
-        when(books.findAll(org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<Book>>any(),
-                org.mockito.ArgumentMatchers.<org.springframework.data.domain.Pageable>any()))
-                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(book1)));
-        when(categories.findAll()).thenReturn(List.of(fiction));
-        when(resellListings.findByStatusOrderByCreatedAtDesc("AVAILABLE")).thenReturn(List.of(resell, exchange));
-
-        CatalogController controller = new CatalogController(books, categories, profiles, resellListings, users, cart);
+        CatalogController controller = new CatalogController(books, categories, profiles, resellListings, users);
 
         Model resellModel = new ExtendedModelMap();
         controller.catalog(null, "resell", null, 0,
                 new UsernamePasswordAuthenticationToken("buyer@example.com", "pw"), resellModel);
         assertEquals(List.of(), resellModel.getAttribute("books"));
         assertEquals(List.of(resell), resellModel.getAttribute("resellListings"));
+        verify(books, never()).findAll(any(Specification.class), any(Pageable.class));
 
         Model exchangeModel = new ExtendedModelMap();
         controller.catalog(null, "exchange", "brave", 0,
                 new UsernamePasswordAuthenticationToken("buyer@example.com", "pw"), exchangeModel);
         assertEquals(List.of(), exchangeModel.getAttribute("books"));
         assertEquals(List.of(exchange), exchangeModel.getAttribute("resellListings"));
+    }
+
+    @Test
+    void communityListingsAreRequestedNewestFirstInPagesOfTwelve() {
+        ResellListings resellListings = mock(ResellListings.class);
+        when(resellListings.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
+        CatalogController controller = new CatalogController(mock(Books.class), mock(Categories.class),
+                mock(SellerProfiles.class), resellListings, mock(UserRepository.class));
+
+        controller.catalog(null, "exchange", null, 0,
+                new UsernamePasswordAuthenticationToken("buyer@example.com", "pw"), new ExtendedModelMap());
+
+        org.mockito.ArgumentCaptor<Pageable> pageable = org.mockito.ArgumentCaptor.forClass(Pageable.class);
+        verify(resellListings).findAll(any(Specification.class), pageable.capture());
+        assertEquals(PageRequest.of(0, CatalogController.PAGE_SIZE,
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt", "id")),
+                pageable.getValue());
     }
 }
