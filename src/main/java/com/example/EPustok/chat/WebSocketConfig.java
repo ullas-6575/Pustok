@@ -1,6 +1,9 @@
 package com.example.EPustok.chat;
 
+import java.util.Arrays;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -9,15 +12,42 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+    private final String[] allowedOrigins;
+    private final ChatHandshakeInterceptor handshakeInterceptor;
+    private final ChatStompInterceptor stompInterceptor;
+
+    public WebSocketConfig(
+            @Value("${app.websocket.allowed-origins:http://localhost:8081,http://localhost:8080}") String[] allowedOrigins,
+            ChatHandshakeInterceptor handshakeInterceptor,
+            ChatStompInterceptor stompInterceptor) {
+        this.allowedOrigins = Arrays.stream(allowedOrigins)
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toArray(String[]::new);
+        this.handshakeInterceptor = handshakeInterceptor;
+        this.stompInterceptor = stompInterceptor;
+    }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws-chat").setAllowedOriginPatterns("*");
+        registry.addEndpoint("/ws-chat")
+                .addInterceptors(handshakeInterceptor)
+                .setAllowedOrigins(allowedOrigins);
     }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.enableSimpleBroker("/topic");
         registry.setApplicationDestinationPrefixes("/app");
+    }
+
+    @Override
+    public void configureClientInboundChannel(ChannelRegistration registration) {
+        registration.interceptors(stompInterceptor.inboundInterceptor());
+    }
+
+    @Override
+    public void configureClientOutboundChannel(ChannelRegistration registration) {
+        registration.interceptors(stompInterceptor.outboundInterceptor());
     }
 }

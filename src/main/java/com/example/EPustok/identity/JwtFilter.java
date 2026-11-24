@@ -19,6 +19,8 @@ public class JwtFilter extends OncePerRequestFilter {
             try {
                 var jwt = tokens.validate(token);
                 var user = users.loadUserByUsername(jwt.getSubject());
+                // Checked on every request, so disabling an account takes effect on existing tokens immediately.
+                if (!user.isEnabled()) throw new org.springframework.security.authentication.DisabledException("Account is disabled");
                 var context = SecurityContextHolder.createEmptyContext();
                 context.setAuthentication(new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
                 SecurityContextHolder.setContext(context);
