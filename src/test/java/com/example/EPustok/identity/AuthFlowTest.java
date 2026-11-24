@@ -42,8 +42,9 @@ class AuthFlowTest {
         @Bean JdbcTemplate jdbc() { return mock(JdbcTemplate.class); }
         @Bean JwtService tokens(JdbcTemplate jdbc) { return new JwtService(Base64.getEncoder().encodeToString(new byte[32]), false, jdbc); }
         @Bean RegistrationService registration(UserRepository users, PasswordEncoder encoder) { return new RegistrationService(users, encoder); }
-        @Bean AuthController authController(RegistrationService registration, AuthenticationManager manager, JwtService tokens) { return new AuthController(registration, manager, tokens); }
-        @Bean AuthApiController authApi(AuthenticationManager manager, JwtService tokens, RegistrationService registration) { return new AuthApiController(manager, tokens, registration); }
+        @Bean AuthRateLimiter authRateLimiter() { return new AuthRateLimiter(); }
+        @Bean AuthController authController(RegistrationService registration, AuthenticationManager manager, JwtService tokens, AuthRateLimiter limiter) { return new AuthController(registration, manager, tokens, limiter); }
+        @Bean AuthApiController authApi(AuthenticationManager manager, JwtService tokens, RegistrationService registration, AuthRateLimiter limiter) { return new AuthApiController(manager, tokens, registration, limiter); }
         @Bean Probe probe() { return new Probe(); }
     }
     @RestController static class Probe {
@@ -56,10 +57,12 @@ class AuthFlowTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired JwtService tokens;
     @Autowired PasswordEncoder passwords;
+    @Autowired AuthRateLimiter limiter;
     MockMvc mvc;
 
     @BeforeEach void setup() {
         reset(users, jdbc);
+        limiter.reset();
         User buyer = new User("Reader", "reader@example.com", passwords.encode(PASSWORD));
         when(users.findByEmailIgnoreCase("reader@example.com")).thenReturn(Optional.of(buyer));
         when(users.existsByEmailIgnoreCase(anyString())).thenReturn(false);
@@ -153,5 +156,38 @@ class AuthFlowTest {
         mvc.perform(post("/api/auth/logout").header("Authorization", "Bearer not-a-real-token"))
                 .andExpect(status().isUnauthorized());
         verifyNoInteractions(jdbc);
+    }
+
+    @Test void repeatedBrowserFailuresForOneAccountAreRateLimited() throws Exception {
+        for (int i = 0; i < AuthRateLimiter.ACCOUNT_MAX_FAILURES; i++) {
+            mvc.perform(post("/signin").with(csrf())
+                            .param("email", "reader@example.com").param("password", "wrong-password"))
+                    .andExpect(status().isOk());
+        }
+        var blocked = mvc.perform(post("/signin").with(csrf())
+                        .param("email", "Reader@Example.com").param("password", PASSWORD))
+                .andExpect(status().is(429)).andExpect(view().name("auth/signin")).andReturn();
+        assertTrue(blocked.getResponse().getHeaders("Set-Cookie").isEmpty(), "a blocked attempt must not issue a cookie");
+    }
+
+    @Test void repeatedApiFailuresForOneAccountAreRateLimited() throws Exception {
+        for (int i = 0; i < AuthRateLimiter.ACCOUNT_MAX_FAILURES; i++) {
+            mvc.perform(post("/api/auth/login").with(csrf()).contentType("application/json")
+                            .content("{\"email\":\"reader@example.com\",\"password\":\"wrong-password\"}"))
+                    .andExpect(status().isUnauthorized());
+        }
+        mvc.perform(post("/api/auth/login").with(csrf()).contentType("application/json")
+                        .content("{\"email\":\"reader@example.com\",\"password\":\"" + PASSWORD + "\"}"))
+                .andExpect(status().is(429));
+    }
+
+    @Test void apiErrorsAreJsonNotHtml() throws Exception {
+        mvc.perform(get("/api/admin/users").header("Authorization", "Bearer " + tokens.issue("reader@example.com")))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath("$.status").value(403));
+        mvc.perform(get("/api/admin/users"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith("application/json"));
     }
 }

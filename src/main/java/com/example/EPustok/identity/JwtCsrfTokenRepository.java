@@ -10,7 +10,11 @@ import java.util.HexFormat;
 /** Authenticated forms use a token bound to the existing HttpOnly JWT cookie. */
 public final class JwtCsrfTokenRepository implements CsrfTokenRepository {
     private final CookieCsrfTokenRepository anonymous = new CookieCsrfTokenRepository();
-    public JwtCsrfTokenRepository() { anonymous.setCookieName("PUSTOK_CSRF"); anonymous.setCookiePath("/"); }
+    public JwtCsrfTokenRepository(boolean secureCookie) {
+        anonymous.setCookieName("PUSTOK_CSRF");
+        anonymous.setCookiePath("/");
+        anonymous.setCookieCustomizer(cookie -> cookie.secure(secureCookie).sameSite("Lax").path("/"));
+    }
     private String jwt(HttpServletRequest request) {
         if (request.getCookies() != null) for (var cookie : request.getCookies())
             if (JwtService.COOKIE.equals(cookie.getName()) && !cookie.getValue().isBlank()) return cookie.getValue();

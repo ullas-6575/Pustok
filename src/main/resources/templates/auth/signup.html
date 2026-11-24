@@ -1,9 +1,10 @@
 <!doctype html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Create account | Pustok</title><link rel="stylesheet" th:href="@{/css/base.css}"><link rel="stylesheet" th:href="@{/css/auth.css}"></head>
-<body><th:block th:replace="~{fragments/nav :: site-header(active='signup')}"></th:block><main class="card"><a class="brand" th:href="@{/}">Pustok</a><h1>Create your account</h1><p class="muted">Join the community of book lovers.</p>
+<body><th:block th:replace="~{fragments/nav :: site-header(active='signup')}"></th:block><main class="card"><a class="brand" th:href="@{/}">Pustok</a><h1>Create your account</h1><p class="muted">Enter your details to set up an account.</p>
 <form th:action="@{/signup}" th:object="${form}" method="post">
-<label for="name">Full name</label><input id="name" th:field="*{name}" autocomplete="name" required maxlength="120"><small class="field-error" th:errors="*{name}"></small>
-<label for="email">Email</label><input id="email" type="email" th:field="*{email}" autocomplete="email" required maxlength="254"><small class="field-error" th:errors="*{email}"></small>
-<label for="password">Password</label><input id="password" type="password" th:field="*{password}" autocomplete="new-password" minlength="8" maxlength="72" required><small class="hint">At least 8 characters.</small><small class="field-error" th:errors="*{password}"></small>
+<div class="notice error" role="alert" th:if="${#fields.hasGlobalErrors()}" th:errors="*{global}"></div>
+<label for="name">Full name</label><input id="name" th:field="*{name}" autocomplete="name" required maxlength="120" th:aria-invalid="${#fields.hasErrors('name')} ? 'true' : null" th:aria-describedby="${#fields.hasErrors('name')} ? 'name-error' : null"><small id="name-error" class="field-error" th:errors="*{name}"></small>
+<label for="email">Email</label><input id="email" type="email" th:field="*{email}" autocomplete="email" required maxlength="254" th:aria-invalid="${#fields.hasErrors('email')} ? 'true' : null" th:aria-describedby="${#fields.hasErrors('email')} ? 'email-error' : null"><small id="email-error" class="field-error" th:errors="*{email}"></small>
+<label for="password">Password</label><input id="password" type="password" name="password" autocomplete="new-password" minlength="8" maxlength="72" required th:aria-invalid="${#fields.hasErrors('password')} ? 'true' : null" th:aria-describedby="${#fields.hasErrors('password')} ? 'password-hint password-error' : 'password-hint'"><small id="password-hint" class="hint">At least 8 characters.</small><small id="password-error" class="field-error" th:errors="*{password}"></small>
 <button type="submit">Create account</button></form><p class="foot">Already have an account? <a th:href="@{/signin}">Sign in</a></p></main><th:block th:replace="~{fragments/nav :: site-footer}"></th:block></body></html>

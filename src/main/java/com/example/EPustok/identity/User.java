@@ -18,6 +18,8 @@ public class User {
     private String role = "BUYER";
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
+    @Column(name = "enabled", nullable = false)
+    private boolean enabled = true;
 
     protected User() {}
     public User(String name, String email, String passwordHash) {
@@ -28,5 +30,7 @@ public class User {
     public String getEmail() { return email; }
     public String getPasswordHash() { return passwordHash; }
     public String getRole() { return role; }
+    public boolean isEnabled() { return enabled; }
     public void assignRole(Role role) { this.role = role.name(); }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 }

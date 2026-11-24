@@ -22,6 +22,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 import jakarta.servlet.http.Cookie;
 
 @SpringJUnitConfig(JwtAccessTest.Config.class)
@@ -33,8 +35,9 @@ class JwtAccessTest {
         @Bean JdbcTemplate jdbc() { return mock(JdbcTemplate.class); }
         @Bean JwtService tokens(JdbcTemplate jdbc) { return new JwtService(Base64.getEncoder().encodeToString(new byte[32]),false,jdbc); }
         @Bean RegistrationService registration(UserRepository users,PasswordEncoder encoder) { return new RegistrationService(users,encoder); }
-        @Bean AuthApiController auth(AuthenticationManager manager,JwtService jwt,RegistrationService registration) { return new AuthApiController(manager,jwt,registration); }
-        @Bean AdminService adminService(UserRepository users) { return new AdminService(users); }
+        @Bean AuthRateLimiter authRateLimiter() { return new AuthRateLimiter(); }
+        @Bean AuthApiController auth(AuthenticationManager manager,JwtService jwt,RegistrationService registration,AuthRateLimiter limiter) { return new AuthApiController(manager,jwt,registration,limiter); }
+        @Bean AdminService adminService(UserRepository users,JdbcTemplate jdbc) { return new AdminService(users,jdbc); }
         @Bean AdminApiController adminApi(AdminService admin) { return new AdminApiController(admin); }
         @Bean Probe probe() { return new Probe(); }
     }
@@ -47,9 +50,11 @@ class JwtAccessTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired JwtService tokens;
     @Autowired PasswordEncoder passwords;
+    @Autowired AuthRateLimiter limiter;
     MockMvc mvc;
     @BeforeEach void setup() {
         reset(users,jdbc);
+        limiter.reset();
         for(Role role:Role.values()) {
             User user=new User(role.name(),role.name().toLowerCase()+"@example.com",passwords.encode("correct-password"));
             user.assignRole(role);
@@ -106,9 +111,17 @@ class JwtAccessTest {
     }
     @Test void roleChangeTakesEffectForExistingJwt() throws Exception {
         String token=tokens.issue("buyer@example.com");
-        User user=users.findByEmailIgnoreCase("buyer@example.com").orElseThrow();
+        User user=users.findByEmailIgnoreCase("buyer@example.com").orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
         user.assignRole(Role.SELLER);
         mvc.perform(get("/seller/probe").header("Authorization","Bearer "+token)).andExpect(status().isOk());
         mvc.perform(get("/buyer/probe").header("Authorization","Bearer "+token)).andExpect(status().isOk());
+    }
+    @Test void disabledAccountLosesExistingTokenAndCannotLogin() throws Exception {
+        String token=tokens.issue("buyer@example.com");
+        User user=users.findByEmailIgnoreCase("buyer@example.com").orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        mvc.perform(get("/api/auth/me").header("Authorization","Bearer "+token)).andExpect(status().isOk());
+        user.setEnabled(false);
+        mvc.perform(get("/api/auth/me").header("Authorization","Bearer "+token)).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/auth/login").with(csrf()).contentType("application/json").content("{\"email\":\"buyer@example.com\",\"password\":\"correct-password\"}")).andExpect(status().isUnauthorized());
     }
 }

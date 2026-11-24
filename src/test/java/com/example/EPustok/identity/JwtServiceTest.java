@@ -38,4 +38,20 @@ class JwtServiceTest {
         when(jdbc.queryForObject(anyString(),eq(Boolean.class),eq(id))).thenReturn(true);
         assertThrows(JwtException.class,()->tokens.validate(token));
     }
+    @Test void logoutRevokesBothBearerAndCookieTokens() {
+        String headerToken=tokens.issue("reader@example.com");
+        String cookieToken=tokens.issue("reader@example.com");
+        String headerId=tokens.validate(headerToken).getId();
+        String cookieId=tokens.validate(cookieToken).getId();
+        var request=new org.springframework.mock.web.MockHttpServletRequest();
+        request.addHeader("Authorization","Bearer "+headerToken);
+        request.setCookies(new jakarta.servlet.http.Cookie(JwtService.COOKIE,cookieToken));
+        tokens.logout(request,new org.springframework.mock.web.MockHttpServletResponse());
+        verify(jdbc).update(anyString(),eq(headerId),any(java.sql.Timestamp.class));
+        verify(jdbc).update(anyString(),eq(cookieId),any(java.sql.Timestamp.class));
+    }
+    @Test void secureFlagIsPassedThroughToCookieSettings() {
+        assertFalse(new JwtService(java.util.Base64.getEncoder().encodeToString(new byte[32]),false,jdbc).isSecureCookie());
+        assertTrue(new JwtService(java.util.Base64.getEncoder().encodeToString(new byte[32]),true,jdbc).isSecureCookie());
+    }
 }

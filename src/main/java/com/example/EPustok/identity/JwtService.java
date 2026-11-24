@@ -20,7 +20,7 @@ public class JwtService {
     private final JwtDecoder decoder;
     private final JdbcTemplate jdbc;
     private final boolean secure;
-    public JwtService(@Value("${JWT_SECRET}") String secret, @Value("${JWT_COOKIE_SECURE:false}") boolean secure, JdbcTemplate jdbc) {
+    public JwtService(@Value("${JWT_SECRET}") String secret, @Value("${JWT_COOKIE_SECURE:true}") boolean secure, JdbcTemplate jdbc) {
         byte[] bytes = java.util.Base64.getDecoder().decode(secret);
         if (bytes.length < 32) throw new IllegalArgumentException("JWT_SECRET must contain at least 32 random bytes, Base64 encoded");
         var key = new SecretKeySpec(bytes, "HmacSHA256");
@@ -50,30 +50,33 @@ public class JwtService {
         jdbc.update("insert into identity_revoked_tokens(token_id, expires_at) values (?, ?) on conflict do nothing",
                 jwt.getId(), java.sql.Timestamp.from(jwt.getExpiresAt()));
     }
-    /** Revokes the presented token when it is still valid, then clears the browser cookie. Used by browser and API logout. */
+    /** Whether the browser cookies carry the Secure flag. The CSRF cookie follows the same setting. */
+    public boolean isSecureCookie() { return secure; }
+    /** Revokes every token presented with the request, then clears the browser cookie. Used by browser and API logout. */
     public void logout(HttpServletRequest request, HttpServletResponse response) {
-        String token = extract(request);
-        if (token != null) {
+        revokePresented(request);
+        cookie(response, "");
+        SecurityContextHolder.clearContext();
+    }
+    /** Issues a new token and revokes every token presented with the request, so every login rotates credentials. */
+    public String rotate(HttpServletRequest request, String email) {
+        revokePresented(request);
+        return issue(email);
+    }
+    /** A Bearer header token and a cookie token can differ; both are revoked, not just the one extract() prefers. */
+    private void revokePresented(HttpServletRequest request) {
+        java.util.Set<String> presented = new java.util.LinkedHashSet<>();
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) presented.add(header.substring(7));
+        if (request.getCookies() != null) for (Cookie cookie : request.getCookies()) if (COOKIE.equals(cookie.getName())) presented.add(cookie.getValue());
+        for (String token : presented) {
+            if (token == null || token.isBlank()) continue;
             try {
                 revoke(token);
             } catch (JwtException ignored) {
                 // Malformed, forged or already expired: nothing valid to revoke.
             }
         }
-        cookie(response, "");
-        SecurityContextHolder.clearContext();
-    }
-    /** Issues a new token and revokes the one presented with the request, so every login rotates credentials. */
-    public String rotate(HttpServletRequest request, String email) {
-        String previous = extract(request);
-        if (previous != null) {
-            try {
-                revoke(previous);
-            } catch (JwtException ignored) {
-                // Nothing valid to rotate away from.
-            }
-        }
-        return issue(email);
     }
     public String extract(HttpServletRequest request) {
         String header = request.getHeader("Authorization");

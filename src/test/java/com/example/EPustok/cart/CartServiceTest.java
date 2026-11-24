@@ -25,6 +25,10 @@ var jdbc=mock(JdbcTemplate.class);var users=mock(UserRepository.class);when(user
 new CartService(jdbc,users,mock(Books.class)).remove("b@example.com",5);
 verify(jdbc).update("DELETE FROM cart_item WHERE user_id=? AND book_id=?",1L,5L);
 }
+@Test void unknownUserIsUnauthorizedInsteadOfServerError(){
+var ex=assertThrows(org.springframework.web.server.ResponseStatusException.class,()->new CartService(mock(JdbcTemplate.class),mock(UserRepository.class),mock(Books.class)).remove("ghost@example.com",5));
+assertEquals(org.springframework.http.HttpStatus.UNAUTHORIZED,ex.getStatusCode());
+}
 @Test void subtotalUsesDecimalArithmetic(){assertEquals(new BigDecimal("30.75"),new CartService.Line(1,"Book","Author",new BigDecimal("10.25"),5,3).getSubtotal());}
 @Test void blocksOwnResellListingInCart() throws Exception {
 var jdbc=mock(JdbcTemplate.class);var users=mock(UserRepository.class);when(users.findByEmailIgnoreCase("b@example.com")).thenReturn(Optional.of(user()));

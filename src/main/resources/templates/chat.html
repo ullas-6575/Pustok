@@ -13,7 +13,6 @@
 <main class="chat-shell">
   <aside class="chat-list" aria-label="Exchange conversations">
     <div class="list-head">
-      <span class="eyebrow">EXCHANGE NEGOTIATIONS</span>
       <h2>Your chats</h2>
     </div>
     <p class="list-empty" th:if="${#lists.isEmpty(conversations)}">
@@ -33,36 +32,39 @@
   </aside>
 
   <section class="chat-main" aria-label="Conversation">
+    <p class="notice" role="status" th:if="${message}" th:text="${message}"></p>
+
     <div class="chat-empty-state" th:if="${activeConversation == null}">
-      <span class="empty-symbol" aria-hidden="true">&#10042;</span>
-      <h2>Select a conversation</h2>
+      <h1>Select a conversation</h1>
       <p>Negotiate book swaps in real time with the other reader.</p>
-      <a class="browse-link" th:href="@{/catalog(type='exchange')}">Browse Exchange Books &rarr;</a>
+      <a class="browse-link" th:href="@{/catalog(type='exchange')}">Browse exchange books</a>
     </div>
 
     <div class="chat-room" th:if="${activeConversation != null}"
          th:attr="data-conv-id=${activeConversation.id},data-user-id=${currentUserId}">
       <div class="chat-room-head">
         <div>
-          <span class="eyebrow" th:text="${'EXCHANGE WITH ' + #strings.toUpperCase(peerName)}">EXCHANGE</span>
+          <span class="eyebrow" th:text="${'Exchange with ' + peerName}">Exchange</span>
           <h1 th:text="${activeListing != null ? activeListing.title : 'Book Exchange'}">Book Title</h1>
           <p class="room-meta" th:if="${activeListing != null}">
-            <span th:text="${'by ' + activeListing.author + ' • ' + activeListing.bookCondition.replace('_', ' ')}"></span>
+            <span th:text="${'by ' + activeListing.author + ' • ' + #strings.capitalize(#strings.toLowerCase(activeListing.bookCondition.replace('_', ' ')))}"></span>
             <span th:text="${' • Looking for: ' + (activeListing.desiredBook != null ? activeListing.desiredBook : 'Open to offers')}"></span>
           </p>
         </div>
         <div class="room-actions">
-          <span class="ws-status" id="wsStatus">Connecting...</span>
+          <span class="ws-status" id="wsStatus" role="status">Connecting...</span>
           <form th:if="${isListingOwner and activeListing != null and activeListing.status == 'AVAILABLE'}"
-                th:action="@{/resell/{id}/close(id=${activeListing.id})}" method="post">
+                th:action="@{/resell/{id}/close(id=${activeListing.id})}" method="post"
+                onsubmit="return confirm('Mark this exchange as closed?');">
             <button class="btn btn-secondary btn-sm" type="submit">Mark Exchange Closed</button>
           </form>
         </div>
       </div>
 
-      <div class="chat-messages" id="chatMessages">
+      <div class="chat-messages" id="chatMessages" role="log" aria-live="polite" aria-label="Conversation messages">
         <div class="msg-row" th:each="m : ${messages}"
-             th:classappend="${m.senderId == currentUserId ? ' mine' : ' theirs'}">
+             th:classappend="${m.senderId == currentUserId ? ' mine' : ' theirs'}"
+             th:attr="data-id=${m.id}">
           <div class="msg-bubble">
             <div class="msg-meta">
               <strong th:text="${m.senderId == currentUserId ? 'You' : m.senderName}">Sender</strong>
@@ -74,6 +76,7 @@
       </div>
 
       <form class="chat-input-form" id="chatForm">
+        <label class="sr-only" for="chatInput">Message to the other reader</label>
         <input type="text" id="chatInput" maxlength="1000" autocomplete="off"
                placeholder="Write an offer or propose a meetup / book swap..." required>
         <button type="submit" id="sendBtn" disabled>Send</button>
@@ -93,12 +96,23 @@
     const sendBtn = document.getElementById('sendBtn');
     const statusEl = document.getElementById('wsStatus');
 
+    const INITIAL_RETRY_MS = 1000;
+    const MAX_RETRY_MS = 30000;
+    const seenIds = new Set();
+    let ws = null;
+    let buffer = '';
+    let isLive = false;
+    let hasConnected = false;
+    let retryMs = INITIAL_RETRY_MS;
+    let noticeTimer = null;
+
+    messagesEl.querySelectorAll('.msg-row[data-id]').forEach(function (row) {
+      seenIds.add(row.getAttribute('data-id'));
+    });
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = protocol + '//' + window.location.host + '/ws-chat';
-    let ws;
-    let buffer = '';
 
     function frame(command, headers, body) {
       let out = command + '\n';
@@ -109,10 +123,51 @@
       return out;
     }
 
-    function appendMessage(msg) {
+    function headerValue(headerPart, name) {
+      const lines = headerPart.split('\n');
+      for (const line of lines) {
+        const i = line.indexOf(':');
+        if (i > 0 && line.slice(0, i) === name) return line.slice(i + 1);
+      }
+      return '';
+    }
+
+    function showNotice(text) {
+      statusEl.textContent = text;
+      statusEl.classList.remove('online');
+      clearTimeout(noticeTimer);
+      noticeTimer = setTimeout(function () {
+        if (isLive) {
+          statusEl.textContent = 'Live';
+          statusEl.classList.add('online');
+        }
+      }, 5000);
+    }
+
+    // Keeps rows sorted by message id, so live messages and re-synced history land in the right order.
+    function insertInOrder(row, id) {
+      let before = null;
+      if (id != null) {
+        for (let i = messagesEl.children.length - 1; i >= 0; i--) {
+          const existing = messagesEl.children[i];
+          if (!(Number(existing.getAttribute('data-id')) > Number(id))) break;
+          before = existing;
+        }
+      }
+      messagesEl.insertBefore(row, before);
+      if (before === null) messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function renderMessage(msg) {
+      const key = msg.id != null ? String(msg.id) : null;
+      if (key !== null) {
+        if (seenIds.has(key)) return;
+        seenIds.add(key);
+      }
       const isMine = Number(msg.senderId) === currentUserId;
       const row = document.createElement('div');
       row.className = 'msg-row ' + (isMine ? 'mine' : 'theirs');
+      if (key !== null) row.setAttribute('data-id', key);
 
       const bubble = document.createElement('div');
       bubble.className = 'msg-bubble';
@@ -133,16 +188,32 @@
       bubble.appendChild(meta);
       bubble.appendChild(p);
       row.appendChild(bubble);
-      messagesEl.appendChild(row);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+      insertInOrder(row, msg.id);
+    }
+
+    // Re-fetches the history after a reconnect. Rows already shown are skipped by id.
+    function loadHistory() {
+      fetch('/chat/' + encodeURIComponent(convId) + '/messages', {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin'
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }).then(function (list) {
+        list.forEach(renderMessage);
+      }).catch(function () {
+        showNotice('Could not refresh the earlier messages.');
+      });
     }
 
     function connect() {
-      ws = new WebSocket(wsUrl);
-      ws.onopen = function () {
-        ws.send(frame('CONNECT', { 'accept-version': '1.2', 'heart-beat': '0,0' }, ''));
+      const socket = new WebSocket(wsUrl);
+      buffer = '';
+      ws = socket;
+      socket.onopen = function () {
+        socket.send(frame('CONNECT', { 'accept-version': '1.2', 'heart-beat': '0,0' }, ''));
       };
-      ws.onmessage = function (event) {
+      socket.onmessage = function (event) {
         buffer += event.data;
         let idx;
         while ((idx = buffer.indexOf('\0')) !== -1) {
@@ -155,31 +226,40 @@
           const bodyPart = splitIdx >= 0 ? trimmed.slice(splitIdx + 2) : '';
           const command = headerPart.split('\n')[0].trim();
           if (command === 'CONNECTED') {
+            isLive = true;
+            retryMs = INITIAL_RETRY_MS;
             statusEl.textContent = 'Live';
             statusEl.classList.add('online');
             sendBtn.disabled = false;
-            ws.send(frame('SUBSCRIBE', { id: 'sub-0', destination: '/topic/chat/' + convId }, ''));
+            socket.send(frame('SUBSCRIBE', { id: 'sub-0', destination: '/topic/chat/' + convId }, ''));
+            if (hasConnected) loadHistory();
+            hasConnected = true;
           } else if (command === 'MESSAGE' && bodyPart) {
             try {
-              appendMessage(JSON.parse(bodyPart));
+              renderMessage(JSON.parse(bodyPart));
             } catch (e) {
               console.error(e);
             }
+          } else if (command === 'ERROR') {
+            showNotice(headerValue(headerPart, 'message') || 'The chat server rejected that request.');
           }
         }
       };
-      ws.onclose = function () {
+      socket.onclose = function () {
+        isLive = false;
         statusEl.textContent = 'Reconnecting...';
         statusEl.classList.remove('online');
         sendBtn.disabled = true;
-        setTimeout(connect, 2000);
+        const delay = retryMs;
+        retryMs = Math.min(retryMs * 2, MAX_RETRY_MS);
+        setTimeout(connect, delay);
       };
     }
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       const text = input.value.trim();
-      if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+      if (!text || !isLive || !ws || ws.readyState !== WebSocket.OPEN) return;
       ws.send(frame(
         'SEND',
         { destination: '/app/chat/' + convId, 'content-type': 'application/json' },

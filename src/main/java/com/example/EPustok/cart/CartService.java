@@ -27,7 +27,9 @@ public class CartService {
     }
 
     private long user(String email) {
-        return users.findByEmailIgnoreCase(email).orElseThrow().getId();
+        return users.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED))
+                .getId();
     }
 
     private void lock(long id) {
