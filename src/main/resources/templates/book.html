@@ -11,7 +11,7 @@
 <th:block th:replace="~{fragments/nav :: site-header(active='browse')}"></th:block>
 
 <main>
-  <section class="catalog-grid-section" aria-label="Book details">
+  <section class="catalog-grid-section book-detail" aria-label="Book details">
     <div class="book-grid">
       <article class="book-card catalog-card">
         <div class="book-cover cover-one">
@@ -22,7 +22,7 @@
 
         <div class="book-info">
           <div>
-            <b th:text="${book.title}">Book Title</b>
+            <h1 th:text="${book.title}">Book Title</h1>
             <span th:text="${book.author}">Author</span>
           </div>
           <strong th:text="${'BDT ' + #numbers.formatDecimal(book.price,1,'COMMA',2,'POINT')}">BDT 0.00</strong>
@@ -47,7 +47,7 @@
         </div>
       </article>
     </div>
-    <p><a th:href="@{/catalog}">&larr; Back to catalog</a></p>
+    <a class="back-link" th:href="@{/catalog}">Back to catalog</a>
   </section>
 </main>
 

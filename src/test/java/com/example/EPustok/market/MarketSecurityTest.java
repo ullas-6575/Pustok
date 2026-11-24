@@ -30,7 +30,11 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/** Admin category rules and seller book ownership, enforced through the real security chain and services. */
+/**
+ * Admin category rules and seller book ownership, enforced through the real security chain and services.
+ * Role gates in SecurityConfig answer 403 before any controller runs. Rule failures inside the HTML form handlers
+ * redirect back to the page with the reason flashed as an error.
+ */
 @SpringJUnitConfig(MarketSecurityTest.Config.class)
 @WebAppConfiguration
 class MarketSecurityTest {
@@ -42,7 +46,9 @@ class MarketSecurityTest {
         @Bean SellerProfiles profiles() { return mock(SellerProfiles.class); }
         @Bean Categories categories() { return mock(Categories.class); }
         @Bean Books books() { return mock(Books.class); }
-        @Bean MarketService marketService(UserRepository users, SellerProfiles profiles) { return new MarketService(users, profiles); }
+        @Bean ResellListings resellListings() { return mock(ResellListings.class); }
+        @Bean ExchangeOffers exchangeOffers() { return mock(ExchangeOffers.class); }
+        @Bean MarketService marketService(UserRepository users, SellerProfiles profiles, ResellListings listings, ExchangeOffers offers) { return new MarketService(users, profiles, listings, offers); }
         @Bean MarketController marketController(SellerProfiles profiles, Categories categories, Books books, UserRepository users, MarketService service) {
             return new MarketController(profiles, categories, books, users, service);
         }
@@ -106,20 +112,53 @@ class MarketSecurityTest {
 
     @Test void adminCreatesAndDeletesEmptyCategory() throws Exception {
         mvc.perform(post("/admin/categories").with(csrf()).header("Authorization", bearer("admin@example.com")).param("name", "Poetry"))
-                .andExpect(status().isFound()).andExpect(redirectedUrl("/admin/categories"));
+                .andExpect(status().isFound()).andExpect(redirectedUrl("/admin/categories"))
+                .andExpect(flash().attribute("message", "Category added."));
         verify(categories).save(any(Category.class));
 
+        when(categories.existsById(7L)).thenReturn(true);
         when(books.existsByCategoryId(7L)).thenReturn(false);
         mvc.perform(post("/admin/categories/7/delete").with(csrf()).header("Authorization", bearer("admin@example.com")))
-                .andExpect(status().isFound());
+                .andExpect(status().isFound()).andExpect(redirectedUrl("/admin/categories"));
         verify(categories).deleteById(7L);
     }
 
     @Test void categoryContainingBooksCannotBeDeleted() throws Exception {
+        when(categories.existsById(7L)).thenReturn(true);
         when(books.existsByCategoryId(7L)).thenReturn(true);
         mvc.perform(post("/admin/categories/7/delete").with(csrf()).header("Authorization", bearer("admin@example.com")))
-                .andExpect(status().isConflict());
+                .andExpect(status().isFound()).andExpect(redirectedUrl("/admin/categories"))
+                .andExpect(flash().attribute("error", "Category contains books"));
         verify(categories, never()).deleteById(any());
+    }
+
+    /** MKT-5: deleting a category that does not exist is flashed as not found, not a raw 404 page. */
+    @Test void deletingMissingCategoryIsFlashedNotFound() throws Exception {
+        when(categories.existsById(99L)).thenReturn(false);
+        mvc.perform(post("/admin/categories/99/delete").with(csrf()).header("Authorization", bearer("admin@example.com")))
+                .andExpect(status().isFound()).andExpect(redirectedUrl("/admin/categories"))
+                .andExpect(flash().attribute("error", "Category not found"));
+        verify(books, never()).existsByCategoryId(any());
+        verify(categories, never()).deleteById(any());
+    }
+
+    /** MKT-5: a second category with the same name is refused before saving. */
+    @Test void duplicateCategoryNameIsRefusedAndFlashed() throws Exception {
+        when(categories.existsByName("Poetry")).thenReturn(true);
+        mvc.perform(post("/admin/categories").with(csrf()).header("Authorization", bearer("admin@example.com")).param("name", "Poetry"))
+                .andExpect(status().isFound()).andExpect(redirectedUrl("/admin/categories"))
+                .andExpect(flash().attribute("error", "Category name already exists"));
+        verify(categories, never()).save(any(Category.class));
+    }
+
+    /** MKT-5: renaming to a name another category already has is refused; keeping the category's own name is not. */
+    @Test void renamingToAnotherCategoriesNameIsRefused() throws Exception {
+        when(categories.existsByNameAndIdNot("Literature", 5L)).thenReturn(true);
+        mvc.perform(post("/admin/categories").with(csrf()).header("Authorization", bearer("admin@example.com"))
+                        .param("id", "5").param("name", "Literature"))
+                .andExpect(status().isFound()).andExpect(redirectedUrl("/admin/categories"))
+                .andExpect(flash().attribute("error", "Category name already exists"));
+        verify(categories, never()).save(any(Category.class));
     }
 
     @Test void sellerWithoutApprovedProfileCannotListOrCreateBooks() throws Exception {
@@ -127,7 +166,8 @@ class MarketSecurityTest {
                 .andExpect(status().isForbidden());
         mvc.perform(post("/seller/books").with(csrf()).header("Authorization", bearer("pending@example.com"))
                         .param("title", "T").param("author", "A").param("price", "10.00").param("stock", "1").param("categoryId", "5"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isFound()).andExpect(redirectedUrl("/seller/books"))
+                .andExpect(flash().attributeExists("error"));
         verify(books, never()).save(any(Book.class));
     }
 
@@ -139,9 +179,10 @@ class MarketSecurityTest {
 
         mvc.perform(post("/seller/books").with(csrf()).param("id", "100").header("Authorization", bearer("seller-b@example.com"))
                         .param("title", "Hijack").param("author", "A").param("price", "1.00").param("stock", "1").param("categoryId", "5"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isFound()).andExpect(redirectedUrl("/seller/books"))
+                .andExpect(flash().attributeExists("error"));
         mvc.perform(post("/seller/books/100/delete").with(csrf()).header("Authorization", bearer("seller-b@example.com")))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isFound()).andExpect(flash().attributeExists("error"));
         verify(books, times(1)).save(any(Book.class));
         verify(books, never()).delete(any(Book.class));
     }
@@ -151,7 +192,7 @@ class MarketSecurityTest {
         mvc.perform(post("/buyer/seller-application").with(csrf()).header("Authorization", bearer("buyer@example.com"))
                         .param("shopName", "Reader Books").param("phone", "01700000001").param("address", "Dhaka"))
                 .andExpect(status().isFound());
-        verify(profiles).save(any(SellerProfile.class));
+        verify(profiles).saveAndFlush(any(SellerProfile.class));
 
         mvc.perform(post("/buyer/seller-application").with(csrf()).header("Authorization", bearer("seller-a@example.com"))
                         .param("shopName", "Again").param("phone", "01700000002").param("address", "Dhaka"))
@@ -170,16 +211,18 @@ class MarketSecurityTest {
         when(users.findById(13L)).thenReturn(Optional.of(applicant));
         when(profiles.findById(13L)).thenReturn(Optional.of(application));
         mvc.perform(post("/admin/applications/13").with(csrf()).header("Authorization", bearer("admin@example.com")).param("approve", "true"))
-                .andExpect(status().isFound()).andExpect(redirectedUrl("/admin/applications"));
+                .andExpect(status().isFound()).andExpect(redirectedUrl("/admin/applications"))
+                .andExpect(flash().attribute("message", "Seller application approved."));
         assertEquals("APPROVED", application.getStatus());
         assertEquals("SELLER", applicant.getRole());
     }
 
-    @Test void adminDecisionOnUnknownOrAlreadyReviewedApplicationFails() throws Exception {
+    @Test void adminDecisionOnUnknownOrAlreadyReviewedApplicationFailsWithFlash() throws Exception {
         mvc.perform(post("/admin/applications/99").with(csrf()).header("Authorization", bearer("admin@example.com")).param("approve", "true"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isFound()).andExpect(redirectedUrl("/admin/applications"))
+                .andExpect(flash().attributeExists("error"));
         mvc.perform(post("/admin/applications/10").with(csrf()).header("Authorization", bearer("admin@example.com")).param("approve", "false"))
-                .andExpect(status().isConflict());
+                .andExpect(status().isFound()).andExpect(flash().attribute("error", "Application already reviewed"));
         assertEquals("APPROVED", profiles.findById(10L).orElseThrow().getStatus());
     }
 
@@ -191,26 +234,29 @@ class MarketSecurityTest {
         verify(books, never()).save(any(Book.class));
     }
 
-    @Test void sellerBookNotFoundForUnknownId() throws Exception {
+    @Test void sellerBookNotFoundForUnknownIdIsFlashed() throws Exception {
         mvc.perform(post("/seller/books").with(csrf()).param("id", "999").header("Authorization", bearer("seller-a@example.com"))
                         .param("title", "T").param("author", "A").param("price", "10.00").param("stock", "1").param("categoryId", "5"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isFound()).andExpect(redirectedUrl("/seller/books"))
+                .andExpect(flash().attribute("error", "Book not found"));
         mvc.perform(post("/seller/books/999/delete").with(csrf()).header("Authorization", bearer("seller-a@example.com")))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isFound()).andExpect(flash().attribute("error", "Book not found"));
         verify(books, never()).save(any(Book.class));
         verify(books, never()).delete(any(Book.class));
     }
 
     @Test void ownerDeletesOwnBook() throws Exception {
         mvc.perform(post("/seller/books/100/delete").with(csrf()).header("Authorization", bearer("seller-a@example.com")))
-                .andExpect(status().isFound()).andExpect(redirectedUrl("/seller/books"));
+                .andExpect(status().isFound()).andExpect(redirectedUrl("/seller/books"))
+                .andExpect(flash().attribute("message", "Book removed from your shelf."));
         verify(books).delete(any(Book.class));
     }
 
-    @Test void bookFormRejectsInvalidPriceWithoutSaving() throws Exception {
+    @Test void bookFormRejectsInvalidPriceWithoutSavingAndFlashesReason() throws Exception {
         mvc.perform(post("/seller/books").with(csrf()).header("Authorization", bearer("seller-a@example.com"))
                         .param("title", "T").param("author", "A").param("price", "0").param("stock", "1").param("categoryId", "5"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isFound()).andExpect(redirectedUrl("/seller/books"))
+                .andExpect(flash().attributeExists("error"));
         verify(books, never()).save(any(Book.class));
     }
 
@@ -222,10 +268,10 @@ class MarketSecurityTest {
 
         mvc.perform(post("/admin/categories").with(csrf()).header("Authorization", bearer("admin@example.com"))
                         .param("id", "77").param("name", "Ghost"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isFound()).andExpect(flash().attribute("error", "Category not found"));
         mvc.perform(post("/admin/categories").with(csrf()).header("Authorization", bearer("admin@example.com"))
                         .param("name", " "))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isFound()).andExpect(flash().attributeExists("error"));
         verify(categories, times(1)).save(any(Category.class));
     }
 }

@@ -64,8 +64,4 @@ public class ResellListing {
         this.description = description;
         this.status = "AVAILABLE";
     }
-
-    public void close() {
-        this.status = "CLOSED";
-    }
 }

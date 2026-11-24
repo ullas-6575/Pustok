@@ -12,41 +12,40 @@
 
 <main class="workspace-shell">
   <div class="workspace-heading">
-    <span class="eyebrow">COMMUNITY MARKETPLACE</span>
-    <h1>Resell or exchange a book.</h1>
-    <p>Any reader can list a used book to sell, or offer a book to exchange with another reader via chat (chat coming soon).</p>
+    <h1>Resell or exchange a book</h1>
+    <p>Any reader can list a used book to sell, or offer a book to swap with another reader.</p>
   </div>
 
-  <p class="notice" th:if="${message}" th:text="${message}"></p>
-  <p class="notice error" th:if="${error}" th:text="${error}"></p>
+  <p class="notice" th:if="${message}" th:classappend="${error != null ? ' error' : ''}"
+     th:attr="role=${error != null ? 'alert' : 'status'}" th:text="${message}"></p>
 
   <div class="workspace-content">
     <section class="panel" id="create-listing">
       <h2>Create a resell or exchange listing</h2>
       <form class="listing-form" th:action="@{/resell}" method="post">
-        <label class="field-label span-2">Listing type
+        <label class="field-label">Listing type
           <select name="listingType" id="listingType" required onchange="toggleListingFields()">
             <option value="RESELL">Resell (Sell used book)</option>
-            <option value="EXCHANGE">Exchange (Swap via chat)</option>
+            <option value="EXCHANGE">Exchange (Swap a book)</option>
           </select>
         </label>
-        <label class="field-label span-2">Book title
+        <label class="field-label">Book title
           <input name="title" placeholder="Title" required maxlength="255">
         </label>
-        <label class="field-label span-2">Author
+        <label class="field-label">Author
           <input name="author" placeholder="Author" required maxlength="255">
         </label>
-        <label class="field-label span-2">Condition
+        <label class="field-label">Condition
           <select name="bookCondition" required>
             <option value="LIKE_NEW">Like New</option>
             <option value="GOOD">Good</option>
             <option value="FAIR">Fair</option>
           </select>
         </label>
-        <label class="field-label span-2" id="priceField">Price (BDT)
+        <label class="field-label" id="priceField">Price (BDT)
           <input name="price" id="priceInput" type="number" min="0.01" step="0.01" placeholder="e.g. 250.00" required>
         </label>
-        <label class="field-label span-2" id="desiredBookField" style="display:none">Desired book for exchange
+        <label class="field-label" id="desiredBookField" hidden>Desired book for exchange
           <input name="desiredBook" id="desiredBookInput" placeholder="e.g. Atomic Habits or Fiction" maxlength="255">
         </label>
         <label class="field-label span-all">Notes (optional)
@@ -69,7 +68,7 @@
     <article th:each="item : ${listings}">
       <div class="listing-row">
         <div>
-          <span class="eyebrow" th:text="${item.listingType + ' • ' + item.bookCondition.replace('_', ' ') + ' • ' + item.status}">RESELL</span>
+          <span class="eyebrow" th:text="${#strings.capitalize(#strings.toLowerCase(item.listingType)) + ' • ' + #strings.capitalize(#strings.toLowerCase(item.bookCondition.replace('_', ' '))) + ' • ' + #strings.capitalize(#strings.toLowerCase(item.status))}">RESELL</span>
           <h2 class="listing-title" th:text="${item.title}">Book Title</h2>
           <p th:text="${'by ' + item.author}"></p>
           <p th:if="${item.listingType == 'RESELL' and item.price != null}" th:text="${'Price: BDT ' + item.price}"></p>
@@ -78,14 +77,72 @@
         </div>
         <div class="listing-actions">
           <form th:if="${item.status == 'AVAILABLE'}" th:action="@{/resell/{id}/close(id=${item.id})}" method="post">
-            <button type="submit" class="btn-secondary">Mark closed</button>
+            <button type="submit" class="btn-secondary" th:aria-label="${'Mark ' + item.title + ' as closed'}">Mark closed</button>
           </form>
-          <form th:action="@{/resell/{id}/delete(id=${item.id})}" method="post">
-            <button type="submit" class="btn-danger">Delete</button>
+          <form th:action="@{/resell/{id}/delete(id=${item.id})}" method="post"
+                onsubmit="return confirm('Delete this listing? This cannot be undone.');">
+            <button type="submit" class="btn-danger" th:aria-label="${'Delete listing ' + item.title}">Delete</button>
           </form>
         </div>
       </div>
+
+      <details class="listing-edit" th:if="${item.status == 'AVAILABLE'}">
+        <summary>Edit listing</summary>
+        <form th:action="@{/resell/{id}/edit(id=${item.id})}" method="post">
+          <label>Condition
+            <select name="bookCondition" required>
+              <option value="LIKE_NEW" th:selected="${item.bookCondition == 'LIKE_NEW'}">Like New</option>
+              <option value="GOOD" th:selected="${item.bookCondition == 'GOOD'}">Good</option>
+              <option value="FAIR" th:selected="${item.bookCondition == 'FAIR'}">Fair</option>
+            </select>
+          </label>
+          <label th:if="${item.listingType == 'RESELL'}">Price (BDT)
+            <input name="price" type="number" min="0.01" step="0.01" required th:value="${item.price}">
+          </label>
+          <label>Notes
+            <input name="description" maxlength="500" th:value="${item.description}">
+          </label>
+          <button type="submit">Save changes</button>
+        </form>
+      </details>
+
+      <section class="listing-offers" th:if="${item.listingType == 'EXCHANGE'}">
+        <h3>Offers received</h3>
+        <p th:if="${#lists.isEmpty(offersByListing[item.id])}">No offers yet.</p>
+        <ul>
+          <li th:each="o : ${offersByListing[item.id]}">
+            <span th:text="${o.offeredTitle + ' by ' + o.offeredAuthor}">Offered book</span>
+            <span class="offer-status" th:text="${#strings.capitalize(#strings.toLowerCase(o.status))}">PROPOSED</span>
+            <span class="offer-actions" th:if="${o.status == 'PROPOSED'}">
+              <form th:action="@{/exchange-offers/{id}/accept(id=${o.id})}" method="post"
+                    onsubmit="return confirm('Accept this offer? The listing will close and other offers will be declined.');">
+                <button type="submit" th:aria-label="${'Accept offer for ' + item.title}">Accept</button>
+              </form>
+              <form th:action="@{/exchange-offers/{id}/reject(id=${o.id})}" method="post"
+                    onsubmit="return confirm('Decline this offer?');">
+                <button type="submit" class="btn-secondary" th:aria-label="${'Decline offer for ' + item.title}">Decline</button>
+              </form>
+            </span>
+          </li>
+        </ul>
+      </section>
     </article>
+
+    <section class="listing-offers" th:if="${!#lists.isEmpty(sentOffers)}">
+      <div class="section-heading">
+        <h2>Offers you have made</h2>
+      </div>
+      <ul>
+        <li th:each="o : ${sentOffers}">
+          <span th:text="${'Your ' + o.offeredTitle + ' by ' + o.offeredAuthor + ' for ' + (offerListingTitles[o.listingId] ?: 'a listing')}">Offer</span>
+          <span class="offer-status" th:text="${#strings.capitalize(#strings.toLowerCase(o.status))}">PROPOSED</span>
+          <form th:if="${o.status == 'PROPOSED'}" th:action="@{/exchange-offers/{id}/withdraw(id=${o.id})}" method="post"
+                onsubmit="return confirm('Withdraw this offer?');">
+            <button type="submit" class="btn-secondary">Withdraw</button>
+          </form>
+        </li>
+      </ul>
+    </section>
   </div>
 </main>
 
