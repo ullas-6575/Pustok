@@ -25,7 +25,7 @@
     </svg>
     <header class="site-header">
       <div class="site-header-inner">
-        <a class="logo" th:href="@{/}"><span class="logo-mark" aria-hidden="true">p</span> pustok</a>
+        <a class="logo" th:href="@{/}">Pustok</a>
         <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Open or close the navigation menu" aria-controls="site-nav">
         <label for="nav-toggle" class="nav-burger" aria-hidden="true"><svg class="ico ico-menu" aria-hidden="true" focusable="false"><use href="#i-menu"/></svg><svg class="ico ico-close" aria-hidden="true" focusable="false"><use href="#i-close"/></svg></label>
         <nav class="site-nav" id="site-nav" aria-label="Main navigation">
@@ -97,14 +97,55 @@
         </nav>
       </div>
     </header>
+    <!-- Double-submit guard: after a form submits, its submit buttons are disabled and show a pending label.
+         Skipped for forms with data-no-pending, a non-_self target, or a page script that cancels the submit.
+         Without JavaScript this script never runs and forms submit as normal. -->
+    <script>
+    (function () {
+      var PENDING = 'Working...';
+      var touched = [];
+      function lock(form, submitter) {
+        var controls = form.querySelectorAll('button[type="submit"], button:not([type]), input[type="submit"]');
+        for (var i = 0; i < controls.length; i++) {
+          var el = controls[i];
+          touched.push({ el: el, html: el.innerHTML, value: el.value });
+          el.disabled = true;
+          if (el === submitter) {
+            if (el.tagName === 'BUTTON') { el.textContent = PENDING; } else { el.value = PENDING; }
+          }
+        }
+      }
+      document.addEventListener('submit', function (event) {
+        var form = event.target;
+        if (!form || form.tagName !== 'FORM' || form.hasAttribute('data-no-pending')) { return; }
+        if (form.target && form.target !== '_self') { return; }
+        var submitter = event.submitter || null;
+        // Run after the submit event: the submitter's name/value is already in the form data, and any
+        // page script that calls preventDefault (for example the chat form) has finished.
+        setTimeout(function () {
+          if (event.defaultPrevented) { return; }
+          lock(form, submitter || form.querySelector('button[type="submit"], button:not([type])'));
+        }, 0);
+      });
+      // Back/forward cache can restore a page with controls still locked: undo it.
+      window.addEventListener('pageshow', function (event) {
+        if (!event.persisted) { return; }
+        while (touched.length) {
+          var t = touched.pop();
+          t.el.disabled = false;
+          if (t.el.tagName === 'BUTTON') { t.el.innerHTML = t.html; } else { t.el.value = t.value; }
+        }
+      });
+    })();
+    </script>
   </th:block>
 
   <!-- Shared site footer. -->
   <th:block th:fragment="site-footer">
     <footer class="site-footer">
       <div class="site-footer-inner">
-        <a class="logo" th:href="@{/}"><span class="logo-mark" aria-hidden="true">p</span> pustok</a>
-        <small>Made for the love of a good story.</small>
+        <a class="logo" th:href="@{/}">Pustok</a>
+        <small>Books, new and secondhand.</small>
         <small>&copy; 2026 Pustok Books</small>
       </div>
     </footer>

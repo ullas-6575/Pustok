@@ -26,17 +26,17 @@ Exit: approved sellers list books; other sellers cannot modify those listings.
 
 - [x] Buyer-owned cart and quantity updates. CartServiceTest: updateIsScopedToCallersCartItem, updateWithinStockPersistsQuantity, addRejectsCumulativeQuantityAboveStock, blocksOwnBooksAndStockOverflow.
 - [x] Server-calculated totals and order item price snapshots. CheckoutServiceTest.successfulCheckoutTotalsFromDatabasePricesAndSnapshotsThem; checkout takes no price input.
-- [ ] Transactional checkout and concurrency-safe stock reservation. Rollback on mid-checkout failure is unit-tested (CheckoutRollbackTest, real Spring transaction proxy). BLOCKED: row-level concurrency needs Testcontainers (Day 2, CheckoutServiceIT).
+- [ ] Transactional checkout and concurrency-safe stock reservation. Rollback on mid-checkout failure is unit-tested (CheckoutRollbackTest, real Spring transaction proxy). BLOCKED-BY-DOCKER: CheckoutConcurrencyIT (Testcontainers postgres:16, 20 buyers racing for 5 units) is written, but `./mvnw -B verify` could not run it because no Docker daemon is available. Not ticked until it passes under verify.
 - [ ] Order history, shipping and cancellation transitions. Buyer cancellation is unit-tested (OrderTrackingTest: success, 409 for PROCESSING, shipment started and SHIPPED, 404 for another buyer). BLOCKED: migration V10 has not been applied to a database (Day 2).
 
 Exit: checkout cannot oversell; buyers cannot access others' carts/orders.
 
 ## Milestone 4: Payments and marketplace
 
-- [ ] Mock/COD payment strategies and gateway factory.
-- [ ] Payment idempotency and retry behavior.
+- [x] Mock/COD payment strategies and gateway factory. Tests: PaymentGatewayTest (mockGatewayCompletesOrdinaryPayment, mockGatewayFailsForDeclineTestCard, codGatewayReturnsPendingAndDoesNotCompleteOnCharge, bkashGatewayReturnsPendingWithoutNetwork, nagadGatewayReturnsPendingWithoutNetwork), PaymentGatewayFactoryTest (factoryReturnsEachGatewayByKey, factoryRejectsUnknownKeyWithIllegalArgument), PaymentServiceTest.unknownGatewayKeyIsRejectedAndNothingIsSaved, PaymentControllerTest.unknownGatewayKeyReturns400AndSavesNothing.
+- [ ] Payment idempotency and retry behavior. Not ticked: the UNIQUE(order_id) and UNIQUE(idempotency_key) rules are checked only by PaymentMigrationTest (a text check of V12__payments.sql). No test runs them against Postgres, and the Docker/database suites were not run for this change. The service rules are unit-tested against an in-memory store: PaymentServiceTest.replayOfSameKeyReturnsFirstResultAndSavesOnce, replayOfFailedKeyReturnsFailureWithoutChargingAgain, sameKeyOnAnotherOrderIsRejectedWith409, completedPaymentCannotBeChargedAgainWith409, failedPaymentCanBeRetriedWithNewKey, amountIsTakenFromOrderTotalNotRequest, anotherBuyerCannotPayOrderWith404, completedMockPaymentMovesPlacedOrderToProcessing, codPaymentIsPendingAndLeavesOrderPlaced, failedPaymentLeavesOrderUnpaidAndPlaced, pendingPaymentBlocksNewAttemptWith409, cancelledOrderCannotBePaidWith409.
 - [ ] Resale listing CRUD and ownership checks.
-- [ ] Exchange offer state transitions.
+- [ ] Exchange offer state transitions. PARTIAL: ExchangeStateTest (full transition table), MarketExchangeOfferTest (accept, reject and withdraw legal cases; 409 for illegal transitions with nothing saved; 403 for non-owner and non-offerer; accept closes the listing and rejects competitors in one method; second accept 409; offer on own, closed or RESELL listing rejected; duplicate PROPOSED offer 409; blank title/author 400), ExchangeOfferWebTest (HTTP status mapping). Not ticked: V11 partial unique index, FKs and guarded SQL have never run against Postgres (Day 2), and the concurrent-accept guard is proven only with mocks.
 - [ ] Notifications after successful business transaction commits.
 
 Exit: list → buy → pay → notify works without duplicate payments.
